@@ -2,6 +2,7 @@ import os
 from dataclasses import dataclass
 from typing import Union
 
+import torch
 from datasets import load_dataset
 from loguru import logger
 from simple_parsing import Serializable, field, parse
@@ -27,6 +28,12 @@ class RunConfig(Serializable):
 
     sae_path: Union[str, None] = None
     """Path to your trained sae, can be either local or on the hub"""
+
+    batch_size: int = 32
+    """The batch size for the chunked tokens"""
+
+    load_in_8bit: bool = False
+    """Load the model in 8-bit mode."""
 
     split: str = "train"
     """Dataset split to use."""
@@ -54,18 +61,27 @@ def main(cfg: RunConfig):
     ddp = local_rank is not None
     rank = int(local_rank) if ddp else 0
 
+    if cfg.load_in_8bit:
+        dtype = torch.float16
+    elif torch.cuda.is_bf16_supported():
+        dtype = torch.bfloat16
+    else:
+        dtype = "auto"
+
     logger.info(f"Load Model : {cfg.model}")
 
     if "llava" in cfg.model:
         model = LlavaNextForConditionalGeneration.from_pretrained(
             cfg.model,
             device_map={"": f"cuda:{rank}"},
+            torch_dtype=dtype,
             token=cfg.hf_token,
         )
     else:
         model = AutoModel.from_pretrained(
             cfg.model,
             device_map={"": f"cuda:{rank}"},
+            torch_dtype=dtype,
             token=cfg.hf_token,
         )
 
@@ -85,7 +101,7 @@ def main(cfg: RunConfig):
     else:
         submodule_dict = Sae.load_many(cfg.sae_path, local=False, device=model.device)
 
-    cache = FeatureCache(model, tokenizer, submodule_dict, batch_size=cfg.ctx_len)
+    cache = FeatureCache(model, tokenizer, submodule_dict, batch_size=cfg.batch_size)
 
     cache.run(cfg.ctx_len, dataset)
 
