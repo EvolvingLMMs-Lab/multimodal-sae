@@ -37,6 +37,10 @@ reportPrivateImportUsage = false
 [tool.setuptools.packages.find]
 include = ["sae_auto_interp*"]
 
+[tool.isort]
+profile = "black"
+src_paths = ["sae_auto_interp", "test"]
+
 [tool.ruff]
 # TODO: Clean up or remove experiments folder.
 exclude = ["experiments", "**/prompts/*", "**/prompts.py","**/simulator.py"]

@@ -11,6 +11,10 @@ repos:
     rev: 23.3.0
     hooks:
     -   id: black
+-   repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
 -   repo: https://github.com/charliermarsh/ruff-pre-commit
     rev: 'v0.0.262'
     hooks:
