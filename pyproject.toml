@@ -17,9 +17,11 @@ dependencies = [
     "hf_transfer",
     "httpx==0.23.3",
     "huggingface-hub",
+    "loguru",
     "natsort",  # For sorting module names
     "nnsight",
     "orjson",
+    "openai",
     "pillow",
     "safetensors",
     "simple_parsing",
