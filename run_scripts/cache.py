@@ -113,18 +113,32 @@ def main(cfg: RunConfig):
         dist.barrier()
         if rank != 0:
             dataset = chunk_and_tokenize(dataset, tokenizer, max_seq_len=cfg.ctx_len)
-        dataset = dataset.shard(dist.get_world_size(), rank)
+        # Make sure the dataset is splitted into contiguous chunk
+        dataset = dataset.shard(dist.get_world_size(), rank, contiguous=True)
 
+    logger.info(f"Load many sae from : {cfg.sae_path}")
     if os.path.exists(cfg.sae_path):
         submodule_dict = Sae.load_many(cfg.sae_path, local=True, device=model.device)
     else:
         submodule_dict = Sae.load_many(cfg.sae_path, local=False, device=model.device)
 
-    cache = FeatureCache(model, tokenizer, submodule_dict, batch_size=cfg.batch_size)
-
+    cache = FeatureCache(
+        model,
+        tokenizer,
+        submodule_dict,
+        batch_size=cfg.batch_size,
+        shard_size=len(dataset),
+    )
+    if ddp:
+        dist.barrier()
+    logger.info("Start caching activations")
     cache.run(cfg.ctx_len, dataset)
 
-    cache.save_splits(n_splits=cfg.n_splits, save_dir=cfg.save_dir)
+    if rank == 0:
+        cache.save_splits(n_splits=cfg.n_splits, save_dir=cfg.save_dir)
+
+    if ddp:
+        dist.barrier()
 
 
 if __name__ == "__main__":
