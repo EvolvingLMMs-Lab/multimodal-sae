@@ -1,8 +1,10 @@
+import datetime
 import os
 from dataclasses import dataclass
 from typing import Union
 
 import torch
+import torch.distributed as dist
 from datasets import load_dataset
 from loguru import logger
 from simple_parsing import Serializable, field, parse
@@ -10,6 +12,7 @@ from transformers import AutoModel, AutoTokenizer, LlavaNextForConditionalGenera
 
 from sae_auto_interp.features import FeatureCache
 from sae_auto_interp.sae import Sae
+from sae_auto_interp.sae.data import chunk_and_tokenize
 
 
 @dataclass
@@ -61,6 +64,13 @@ def main(cfg: RunConfig):
     ddp = local_rank is not None
     rank = int(local_rank) if ddp else 0
 
+    if ddp:
+        torch.cuda.set_device(int(local_rank))
+        dist.init_process_group("nccl", timeout=datetime.timedelta(seconds=18000))
+
+        if rank == 0:
+            print(f"Using DDP across {dist.get_world_size()} GPUs.")
+
     if cfg.load_in_8bit:
         dtype = torch.float16
     elif torch.cuda.is_bf16_supported():
@@ -95,6 +105,15 @@ def main(cfg: RunConfig):
         # TODO: Maybe set this to False by default? But RPJ requires it.
         trust_remote_code=True,
     )
+
+    # Awkward hack to prevent other ranks from duplicating data preprocessing
+    if not ddp or rank == 0:
+        dataset = chunk_and_tokenize(dataset, tokenizer, max_seq_len=cfg.ctx_len)
+    if ddp:
+        dist.barrier()
+        if rank != 0:
+            dataset = chunk_and_tokenize(dataset, tokenizer, max_seq_len=cfg.ctx_len)
+        dataset = dataset.shard(dist.get_world_size(), rank)
 
     if os.path.exists(cfg.sae_path):
         submodule_dict = Sae.load_many(cfg.sae_path, local=True, device=model.device)
