@@ -3,8 +3,8 @@ from collections import defaultdict
 from typing import Dict, Union
 
 import torch
+import torch.distributed as dist
 from datasets import Dataset
-from loguru import logger
 from safetensors.torch import save_file
 from torch.utils.data import DataLoader
 from torchtyping import TensorType
@@ -16,7 +16,6 @@ from transformers import (
 )
 
 from ..sae import Sae
-from ..sae.data import chunk_and_tokenize
 
 
 class Cache:
@@ -25,12 +24,18 @@ class Cache:
     """
 
     def __init__(
-        self, filters: Dict[str, TensorType["indices"]] = None, batch_size: int = 64
+        self,
+        shard_size: int,
+        filters: Dict[str, TensorType["indices"]] = None,
+        batch_size: int = 64,
     ):
         self.feature_locations = defaultdict(list)
         self.feature_activations = defaultdict(list)
         self.filters = filters
         self.batch_size = batch_size
+        # The size of the dataset splited onto one shard
+        self.shard_size = shard_size
+        self.rank = dist.get_rank() if dist.is_initialized() else 0
 
     def add(
         self,
@@ -45,7 +50,9 @@ class Cache:
         feature_locations = feature_locations.cpu()
         feature_activations = feature_activations.cpu()
 
-        feature_locations[:, 0] += batch_number * self.batch_size
+        feature_locations[:, 0] += (
+            batch_number * self.batch_size + self.rank * self.shard_size
+        )
         self.feature_locations[module_path].append(feature_locations)
         self.feature_activations[module_path].append(feature_activations)
 
@@ -53,6 +60,30 @@ class Cache:
         """
         Concatenate the feature locations and activations
         """
+
+        if dist.is_initialized():
+            feature_locations = [None for _ in range(dist.get_world_size())]
+            feature_activations = [None for _ in range(dist.get_world_size())]
+            dist.all_gather_object(feature_locations, self.feature_locations)
+            dist.all_gather_object(feature_activations, self.feature_activations)
+
+            gathered_feature_locations = defaultdict(list)
+            gathered_feature_activations = defaultdict(list)
+
+            for feature_location, feature_activation in zip(
+                feature_locations, feature_activations
+            ):
+                for module_path in feature_location.keys():
+                    print(feature_activation[module_path].shape)
+                    gathered_feature_locations[module_path] += feature_location[
+                        module_path
+                    ]
+                    gathered_feature_activations[module_path] += feature_activation[
+                        module_path
+                    ]
+
+            self.feature_locations = gathered_feature_locations
+            self.feature_activations = gathered_feature_activations
 
         for module_path in self.feature_locations.keys():
             self.feature_locations[module_path] = torch.cat(
@@ -92,6 +123,7 @@ class FeatureCache:
         tokenizer: PreTrainedTokenizer,
         submodule_dict: Dict[str, Sae],
         batch_size: int,
+        shard_size: int,
         filters: Dict[str, TensorType["indices"]] = None,
     ):
         if isinstance(model, LlavaNextForConditionalGeneration):
@@ -119,7 +151,7 @@ class FeatureCache:
             else first_sae.cfg.d_in * first_sae.cfg.expansion_factor
         )
 
-        self.cache = Cache(filters, batch_size=batch_size)
+        self.cache = Cache(shard_size, filters, batch_size=batch_size)
         if filters is not None:
             self.filter_submodules(filters)
 
@@ -148,19 +180,17 @@ class FeatureCache:
         self.submodule_dict = filtered_submodules
 
     def run(self, n_tokens: int, tokens: Dataset):
-        logger.info(f"Chunk and tokenized the Data with max sequence : {n_tokens}")
-        tokens = chunk_and_tokenize(
-            tokens,
-            tokenizer=self.tokenizer,
-            max_seq_len=n_tokens,
-        )
         token_batches = DataLoader(tokens, batch_size=self.batch_size, drop_last=True)
 
         total_tokens = 0
         total_batches = len(token_batches)
         tokens_per_batch = n_tokens
 
-        with tqdm(total=total_batches, desc="Caching features") as pbar:
+        rank_zero = not dist.is_initialized() or dist.get_rank() == 0
+
+        with tqdm(
+            total=total_batches, desc="Caching features", disable=not rank_zero
+        ) as pbar:
             for batch_number, batch in enumerate(token_batches):
                 total_tokens += tokens_per_batch
 
@@ -173,7 +203,7 @@ class FeatureCache:
                             outputs = outputs[0]
 
                         name = self.module_to_name[module]
-                        buffer[name] = outputs.flatten(0, 1)
+                        buffer[name] = outputs
 
                     # Forward pass on the model to get the next batch of activations
                     handles = [
@@ -195,8 +225,19 @@ class FeatureCache:
                         for handle in handles:
                             handle.remove()
 
+                    # Add the sae latents into the cache
+                    # latents should be (bs, seq, num_latents)
+                    # Only select the top_k features and masked out the others
                     for module_path, latents in buffer.items():
-                        self.cache.add(latents, batch_number, module_path)
+                        latents = self.submodule_dict[module_path].pre_acts(latents)
+                        topk = torch.topk(
+                            latents, k=self.submodule_dict[module_path].cfg.k, dim=-1
+                        )
+                        # make all other values 0
+                        result = torch.zeros_like(latents)
+                        # results (bs, seq, num_latents)
+                        result.scatter_(-1, topk.indices, latents)
+                        self.cache.add(result, batch_number, module_path)
 
                     del buffer
                     torch.cuda.empty_cache()
@@ -207,6 +248,8 @@ class FeatureCache:
 
         print(f"Total tokens processed: {total_tokens:,}")
         self.cache.save()
+        if dist.is_initialized():
+            dist.barrier()
 
     def save(self, save_dir):
         for module_path in self.cache.feature_locations.keys():
