@@ -74,7 +74,6 @@ class Cache:
                 feature_locations, feature_activations
             ):
                 for module_path in feature_location.keys():
-                    print(feature_activation[module_path].shape)
                     gathered_feature_locations[module_path] += feature_location[
                         module_path
                     ]
@@ -180,7 +179,9 @@ class FeatureCache:
         self.submodule_dict = filtered_submodules
 
     def run(self, n_tokens: int, tokens: Dataset):
-        token_batches = DataLoader(tokens, batch_size=self.batch_size, drop_last=True)
+        token_batches = DataLoader(
+            tokens, batch_size=self.batch_size, drop_last=True, shuffle=False
+        )
 
         total_tokens = 0
         total_batches = len(token_batches)
