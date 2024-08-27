@@ -283,7 +283,9 @@ class FeatureCache:
     def save_splits(self, n_splits: int, save_dir, rank: int):
         split_indices = self._generate_split_indices(n_splits)
 
-        for module_path in self.cache.feature_locations.keys():
+        for module_path in tqdm(
+            self.cache.feature_locations.keys(), desc="Saving safetensors on each rank"
+        ):
             feature_locations = self.cache.feature_locations[module_path]
             feature_activations = self.cache.feature_activations[module_path]
 
