@@ -134,8 +134,9 @@ def main(cfg: RunConfig):
     logger.info("Start caching activations")
     cache.run(cfg.ctx_len, dataset)
 
+    cache.save_splits(n_splits=cfg.n_splits, save_dir=cfg.save_dir, rank=rank)
     if rank == 0:
-        cache.save_splits(n_splits=cfg.n_splits, save_dir=cfg.save_dir)
+        cache.concate_safetensors(n_splits=cfg.n_splits, save_dir=cfg.save_dir)
 
     if ddp:
         dist.barrier()
