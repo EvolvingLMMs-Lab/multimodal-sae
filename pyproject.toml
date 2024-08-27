@@ -25,6 +25,7 @@ dependencies = [
     "pillow",
     "safetensors",
     "simple_parsing",
+    "sglang[all]",
     "torch>=2.1.0",
     "torchtyping",
     "torchvision",
