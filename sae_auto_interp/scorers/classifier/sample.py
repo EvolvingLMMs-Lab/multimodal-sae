@@ -1,6 +1,6 @@
 import random
 from dataclasses import dataclass
-from typing import List, NamedTuple
+from typing import List, NamedTuple, Union
 
 import torch
 from transformers import PreTrainedTokenizer
@@ -20,7 +20,7 @@ class ClassifierOutput:
     id: int
     """Hashed tokens"""
 
-    distance: float | int
+    distance: Union[float, int]
     """Quantile or neighbor distance"""
 
     ground_truth: bool
