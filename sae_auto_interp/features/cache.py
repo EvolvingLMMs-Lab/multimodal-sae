@@ -1,11 +1,12 @@
 import os
+import re
 from collections import defaultdict
 from typing import Dict, Union
 
 import torch
 import torch.distributed as dist
 from datasets import Dataset
-from safetensors.torch import save_file
+from safetensors.torch import load_file, save_file
 from torch.utils.data import DataLoader
 from torchtyping import TensorType
 from tqdm import tqdm
@@ -60,29 +61,6 @@ class Cache:
         """
         Concatenate the feature locations and activations
         """
-
-        if dist.is_initialized():
-            feature_locations = [None for _ in range(dist.get_world_size())]
-            feature_activations = [None for _ in range(dist.get_world_size())]
-            dist.all_gather_object(feature_locations, self.feature_locations)
-            dist.all_gather_object(feature_activations, self.feature_activations)
-
-            gathered_feature_locations = defaultdict(list)
-            gathered_feature_activations = defaultdict(list)
-
-            for feature_location, feature_activation in zip(
-                feature_locations, feature_activations
-            ):
-                for module_path in feature_location.keys():
-                    gathered_feature_locations[module_path] += feature_location[
-                        module_path
-                    ]
-                    gathered_feature_activations[module_path] += feature_activation[
-                        module_path
-                    ]
-
-            self.feature_locations = gathered_feature_locations
-            self.feature_activations = gathered_feature_activations
 
         for module_path in self.feature_locations.keys():
             self.feature_locations[module_path] = torch.cat(
@@ -269,7 +247,40 @@ class FeatureCache:
         # Adjust end by one
         return list(zip(boundaries[:-1], boundaries[1:] - 1))
 
-    def save_splits(self, n_splits: int, save_dir):
+    def concate_safetensors(self, n_splits: int, save_dir):
+        split_indices = self._generate_split_indices(n_splits)
+
+        for module_path in tqdm(
+            self.cache.feature_locations.keys(), desc="Concating safetensors"
+        ):
+            module_dir = f"{save_dir}/{module_path}"
+            for start, end in split_indices:
+                activations = []
+                locations = []
+                res = [
+                    f
+                    for f in os.listdir(f"{module_dir}")
+                    if re.search(r"Rank[0-9]_{}_{}\.safetensors".format(start, end), f)
+                ]
+
+                for r in res:
+                    split_data = load_file(os.path.join(module_dir, r))
+                    activations.append(split_data["activations"])
+                    locations.append(split_data["locations"])
+                    os.remove(os.path.join(module_dir, r))
+
+                activations = torch.cat(activations, dim=0)
+                locations = torch.cat(locations, dim=0)
+
+                split_data = {
+                    "locations": locations,
+                    "activations": activations,
+                }
+                output_file = f"{module_dir}/{start}_{end}.safetensors"
+
+                save_file(split_data, output_file)
+
+    def save_splits(self, n_splits: int, save_dir, rank: int):
         split_indices = self._generate_split_indices(n_splits)
 
         for module_path in self.cache.feature_locations.keys():
@@ -287,7 +298,7 @@ class FeatureCache:
                 module_dir = f"{save_dir}/{module_path}"
                 os.makedirs(module_dir, exist_ok=True)
 
-                output_file = f"{module_dir}/{start}_{end}.safetensors"
+                output_file = f"{module_dir}/Rank{rank}_{start}_{end}.safetensors"
 
                 split_data = {
                     "locations": masked_locations,
