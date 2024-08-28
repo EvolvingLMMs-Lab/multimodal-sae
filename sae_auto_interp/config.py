@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Union
 
-from simple_parsing import Serializable
+from simple_parsing import Serializable, field
 
 
 @dataclass
@@ -48,14 +48,41 @@ class FeatureConfig(Serializable):
 
 @dataclass
 class CacheConfig(Serializable):
-    ctx_len: int
-    """Context length of the autoencoder. Each batch is shape (batch_size, ctx_len)"""
+    model: str = field(
+        default="EleutherAI/pythia-160m",
+        positional=True,
+    )
+    """Name of the model to use."""
+
+    dataset: str = field(
+        default="togethercomputer/RedPajama-Data-1T-Sample",
+        positional=True,
+    )
+    """Path to the dataset."""
+
+    sae_path: Union[str, None] = None
+    """Path to your trained sae, can be either local or on the hub"""
 
     batch_size: int = 32
     """Number of sequences to process in a batch"""
 
-    n_tokens: int = 10_000_000
-    """Number of tokens to cache"""
+    load_in_8bit: bool = False
+    """Load the model in 8-bit mode."""
+
+    split: str = "train"
+    """Dataset split to use."""
 
     n_splits: int = 2
     """Number of splits to divide .safetensors into"""
+
+    ctx_len: int = 2048
+    """Context length of the autoencoder. Each batch is shape (batch_size, ctx_len)"""
+
+    hf_token: Union[str, None] = None
+    """Huggingface API token for downloading models."""
+
+    save_dir: str = "./features_cache"
+    """Save dir for your feature"""
+
+    verbosity: str = "INFO"
+    """Verbosity level"""

@@ -1,63 +1,20 @@
 import datetime
 import os
-from dataclasses import dataclass
-from typing import Union
 
 import torch
 import torch.distributed as dist
 from datasets import load_dataset
 from loguru import logger
-from simple_parsing import Serializable, field, parse
+from simple_parsing import parse
 from transformers import AutoModel, AutoTokenizer, LlavaNextForConditionalGeneration
 
+from sae_auto_interp.config import CacheConfig
 from sae_auto_interp.features import FeatureCache
 from sae_auto_interp.sae import Sae
 from sae_auto_interp.sae.data import chunk_and_tokenize
 
 
-@dataclass
-class RunConfig(Serializable):
-    model: str = field(
-        default="EleutherAI/pythia-160m",
-        positional=True,
-    )
-    """Name of the model to use."""
-
-    dataset: str = field(
-        default="togethercomputer/RedPajama-Data-1T-Sample",
-        positional=True,
-    )
-    """Path to the dataset."""
-
-    sae_path: Union[str, None] = None
-    """Path to your trained sae, can be either local or on the hub"""
-
-    batch_size: int = 32
-    """The batch size for the chunked tokens"""
-
-    load_in_8bit: bool = False
-    """Load the model in 8-bit mode."""
-
-    split: str = "train"
-    """Dataset split to use."""
-
-    n_splits: int = 2
-    """Number of splits to divide .safetensors into"""
-
-    ctx_len: int = 2048
-    """Context length to use."""
-
-    hf_token: Union[str, None] = None
-    """Huggingface API token for downloading models."""
-
-    save_dir: str = "./features_cache"
-    """Save dir for your feature"""
-
-    verbosity: str = "INFO"
-    """Verbosity level"""
-
-
-def main(cfg: RunConfig):
+def main(cfg: CacheConfig):
     # Probably in the future we should do multi-processing
     # But now I think it's still only one process
     local_rank = os.environ.get("LOCAL_RANK")
@@ -143,6 +100,6 @@ def main(cfg: RunConfig):
 
 
 if __name__ == "__main__":
-    cfg = parse(RunConfig)
+    cfg = parse(CacheConfig)
 
     main(cfg)
