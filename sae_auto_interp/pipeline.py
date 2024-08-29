@@ -2,7 +2,7 @@ import asyncio
 from functools import wraps
 from typing import Callable, List
 
-from tqdm.asyncio import tqdm
+from tqdm import tqdm
 
 
 def process_wrapper(function, preprocess=None, postprocess=None):
@@ -56,5 +56,7 @@ class Pipeline:
         for records in self.generator(collate):
             tasks = [asyncio.create_task(_process(record)) for record in records]
 
-            for completed_task in tqdm(asyncio.as_completed(tasks), desc="Collected"):
+            pbar = tqdm(total=len(tasks), desc="Collected")
+            for completed_task in asyncio.as_completed(tasks):
                 await completed_task
+                pbar.update(1)
