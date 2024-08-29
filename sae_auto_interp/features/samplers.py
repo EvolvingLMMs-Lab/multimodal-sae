@@ -93,7 +93,7 @@ def sample(
         cfg.n_examples_train,
         cfg.train_type,
         cfg.n_quantiles,
-        cfg.chosen_quantile,
+        getattr(cfg, "chosen_quantile", 0),
     )
 
     _test = test(

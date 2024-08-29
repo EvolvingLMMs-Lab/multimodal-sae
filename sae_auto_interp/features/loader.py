@@ -39,6 +39,7 @@ class TensorBuffer:
 
         self.activations = None
         self.locations = None
+        self._load()
 
     def _load(self):
         split_data = load_file(self.tensor_path)
@@ -47,15 +48,14 @@ class TensorBuffer:
         self.locations = split_data["locations"]
 
     def __iter__(self):
-        self._load()
-
         if self.features is None:
             self.features = torch.unique(self.locations[:, 2])
+        self.end = len(self.features)
 
         return self
 
     def __next__(self):
-        if self.start >= len(self.features):
+        if self.start >= self.end:
             del self.activations
             del self.locations
             torch.cuda.empty_cache()
@@ -170,6 +170,15 @@ class FeatureDataset:
         sampler: Callable = None,
         transform: Callable = None,
     ):
+        """
+        This load function does the following thing
+        For each buffer
+            For each feature in the buffer
+                Reconstruct the dense activations
+                Pick the topk highest activations
+                Sample n examples
+        """
+
         def _process(buffer_output: BufferOutput):
             record = FeatureRecord(buffer_output.feature)
             if constructor is not None:
@@ -186,7 +195,11 @@ class FeatureDataset:
         def _worker(buffer):
             return [
                 _process(data)
-                for data in tqdm(buffer, desc=f"Loading {buffer.module_path}")
+                for data in tqdm(
+                    buffer,
+                    desc=f"Loading {buffer.module_path}",
+                    total=len(torch.unique(buffer.locations[:, 2])),
+                )
                 if data is not None
             ]
 

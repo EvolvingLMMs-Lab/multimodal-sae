@@ -25,14 +25,21 @@ def _to_dense(tokens, activations, locations):
 # TODO: We should add an option to change stride size
 def _reconstruct_examples(dense_activations, token_batches, ctx_len):
     # Max pool activations
+    # (bs, ctx_len) -> (bs, 1)
     avg_pools = torch.nn.functional.max_pool1d(
         dense_activations, kernel_size=ctx_len, stride=ctx_len
     )
 
     # Unfold tokens and activations to match
+    # Kc : I really don't know why this is
+    # needed. Tested
+    # (activation_windows != dense_activations).sum()
+    # and the results is 0
     activation_windows = dense_activations.unfold(1, ctx_len, ctx_len).reshape(
         -1, ctx_len
     )
+    # Also confirmed
+    # (token_batches != token_windows).sum() is 0
     token_windows = token_batches.unfold(1, ctx_len, ctx_len).reshape(-1, ctx_len)
 
     return token_windows, activation_windows, avg_pools
