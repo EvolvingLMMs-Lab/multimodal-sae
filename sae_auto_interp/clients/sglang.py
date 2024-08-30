@@ -1,5 +1,8 @@
+import base64
 import json
 from asyncio import sleep
+from io import BytesIO
+from typing import Dict, List, Union
 
 from openai import AsyncOpenAI
 from PIL import Image
@@ -41,7 +44,7 @@ class SRT(Client):
 
     async def generate(
         self,
-        prompt: str,
+        prompt: Union[str, List[Dict]],
         raw: bool = False,
         max_retries: int = 2,
         **kwargs,
@@ -51,13 +54,17 @@ class SRT(Client):
         """
         messages = []
         content = []
-        content.append({"type": "text", "text": prompt})
-        messages.append({"role": "user", "content": content})
+        if isinstance(prompt, str):
+            content.append({"type": "text", "text": prompt})
+            messages.append({"role": "user", "content": content})
+        else:
+            messages = prompt
+
         try:
             for attempt in range(max_retries):
                 try:
                     response = await self.client.chat.completions.create(
-                        model=self.model, messages=messages, temperature=0, **kwargs
+                        model=self.model, messages=messages, **kwargs
                     )
                     if response is None:
                         raise Exception("Response is None")
@@ -127,6 +134,16 @@ class SRT(Client):
         except Exception as e:
             logger.error(f"All retry attempts failed. Most recent error: {e}")
             raise
+
+    def encode_images(
+        self,
+        image: Image,
+    ):
+        output_buffer = BytesIO()
+        image.save(output_buffer, format="PNG")
+        byte_data = output_buffer.getvalue()
+        base64_str = base64.b64encode(byte_data).decode("utf-8")
+        return base64_str
 
     def non_async_generate(
         self,
