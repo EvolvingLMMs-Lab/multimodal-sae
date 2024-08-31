@@ -68,20 +68,6 @@ def train(
         raise ValueError(f"Invalid train_type: {train_type}")
 
 
-def test(
-    examples: List[Example],
-    n_test: int,
-    n_quantiles: int,
-    test_type: Literal["even", "activation"],
-):
-    if test_type == "even":
-        return split_quantiles(examples, n_quantiles, n_test)
-    elif test_type == "activation":
-        return split_activation_quantiles(examples, n_quantiles, n_test)
-    else:
-        raise ValueError(f"Invalid test_type: {test_type}")
-
-
 def sample(
     record: FeatureRecord,
     cfg: ExperimentConfig,
@@ -96,12 +82,4 @@ def sample(
         getattr(cfg, "chosen_quantile", 0),
     )
 
-    _test = test(
-        examples,
-        cfg.n_examples_test,
-        cfg.n_quantiles,
-        cfg.test_type,
-    )
-
     record.train = _train
-    record.test = _test
