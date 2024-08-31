@@ -1,13 +1,20 @@
 import os
-from typing import Callable, Dict, List, NamedTuple
+from multiprocessing import cpu_count
+from typing import Callable, Dict, List, NamedTuple, Sequence, Tuple
 
 import torch
 from safetensors.torch import load_file
+from torch.utils.data import DataLoader, Dataset
 from torchtyping import TensorType
 from tqdm import tqdm
 
 from ..config import FeatureConfig
 from ..features.features import Feature, FeatureRecord
+
+
+def collate_fn(instances: Sequence[Tuple]):
+    buffers = [instance["buffer"] for instance in instances]
+    return buffers
 
 
 class BufferOutput(NamedTuple):
@@ -18,7 +25,7 @@ class BufferOutput(NamedTuple):
     activations: TensorType["locations"]
 
 
-class TensorBuffer:
+class TensorBuffer(Dataset):
     """
     Lazy loading buffer for cached splits.
     """
@@ -30,6 +37,7 @@ class TensorBuffer:
         features: TensorType["features"] = None,
         min_examples: int = 120,
     ):
+        super().__init__()
         self.tensor_path = path
         self.module_path = module_path
 
@@ -41,11 +49,19 @@ class TensorBuffer:
         self.locations = None
         self._load()
 
+    def __len__(self):
+        return (
+            len(self.features)
+            if self.features is not None
+            else len(torch.unique(self.locations[:, 2]))
+        )
+
     def _load(self):
         split_data = load_file(self.tensor_path)
 
         self.activations = split_data["activations"]
         self.locations = split_data["locations"]
+        self.features = torch.unique(self.locations[:, 2])
 
     def __iter__(self):
         if self.features is None:
@@ -53,6 +69,24 @@ class TensorBuffer:
         self.end = len(self.features)
 
         return self
+
+    def __getitem__(self, index):
+        feature = self.features[index]
+
+        mask = self.locations[:, 2] == feature
+
+        feature_locations = self.locations[mask][:, :2]
+        feature_activations = self.activations[mask]
+
+        self.start += 1
+
+        return {
+            "buffer": BufferOutput(
+                Feature(self.module_path, feature.item()),
+                feature_locations,
+                feature_activations,
+            )
+        }
 
     def __next__(self):
         if self.start >= self.end:
@@ -193,12 +227,18 @@ class FeatureDataset:
             return record
 
         def _worker(buffer):
+            dl = DataLoader(
+                buffer,
+                batch_size=1,
+                shuffle=False,
+                num_workers=cpu_count() // 4,
+                collate_fn=collate_fn,
+            )
             return [
-                _process(data)
+                _process(data[0])
                 for data in tqdm(
-                    buffer,
+                    dl,
                     desc=f"Loading {buffer.module_path}",
-                    total=len(torch.unique(buffer.locations[:, 2])),
                 )
                 if data is not None
             ]
