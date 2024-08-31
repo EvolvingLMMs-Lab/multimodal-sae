@@ -1,11 +1,20 @@
 from dataclasses import dataclass
 from typing import Literal, Union
 
-from simple_parsing import Serializable, field
+from simple_parsing import Serializable, field, list_field
 
 
 @dataclass
 class ExperimentConfig(Serializable):
+    model: str = "EleutherAI/pythia-160m"
+    """Name of the model to use when training sae."""
+
+    dataset: str = ("togethercomputer/RedPajama-Data-1T-Sample",)
+    """Path to the dataset."""
+
+    sae_path: Union[str, None] = None
+    """Path to your trained sae, Should be local"""
+
     train_type: str = "top"
     """Type of sampler to use"""
 
@@ -24,8 +33,22 @@ class ExperimentConfig(Serializable):
     train_type: Literal["top", "random"] = "top"
     """Type of sampler to use for training"""
 
-    test_type: Literal["even", "activation"] = "even"
+    test_type: Literal["top", "even", "activation"] = "top"
     """Type of sampler to use for testing"""
+
+    explainer: str = "meta-llama/Meta-Llama-3.1-405B-Instruct-FP8"
+    """The name of the explainer model"""
+
+    explanation_dir: str = "./explanation_dir"
+    """Dir to save your explanation result"""
+
+    selected_layers: list[int] = list_field()
+
+    split: str = "train"
+    """Dataset split to use."""
+
+    save_dir: str = "./features_cache"
+    """Save dir for your feature"""
 
 
 @dataclass
