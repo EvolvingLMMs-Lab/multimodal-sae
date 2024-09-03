@@ -51,9 +51,7 @@ class Cache:
         feature_locations = feature_locations.cpu()
         feature_activations = feature_activations.cpu()
 
-        feature_locations[:, 0] += (
-            batch_number * self.batch_size + self.rank * self.shard_size
-        )
+        feature_locations[:, 0] += batch_number * self.batch_size + self.shard_size
         self.feature_locations[module_path].append(feature_locations)
         self.feature_activations[module_path].append(feature_activations)
 
@@ -215,7 +213,7 @@ class FeatureCache:
                         # make all other values 0
                         result = torch.zeros_like(latents)
                         # results (bs, seq, num_latents)
-                        result.scatter_(-1, topk.indices, latents)
+                        result.scatter_(-1, topk.indices, topk.values)
                         self.cache.add(result, batch_number, module_path)
 
                     del buffer
