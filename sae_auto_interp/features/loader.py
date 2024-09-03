@@ -61,7 +61,8 @@ class TensorBuffer(Dataset):
 
         self.activations = split_data["activations"]
         self.locations = split_data["locations"]
-        self.features = torch.unique(self.locations[:, 2])
+        if self.features is None:
+            self.features = torch.unique(self.locations[:, 2])
 
     def __iter__(self):
         if self.features is None:
