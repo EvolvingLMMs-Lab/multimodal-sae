@@ -100,7 +100,7 @@ class SimpleExplainer(Explainer):
     def _join_activations(self, example):
         activations = []
 
-        threshold = example.max_activation * 0.7
+        threshold = example.max_activation * self.threshold
         for i, normalized in enumerate(example.normalized_activations):
             if example.activations[i] > threshold:
                 activations.append((example.str_toks[i], int(normalized)))
