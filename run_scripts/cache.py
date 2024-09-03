@@ -72,6 +72,14 @@ def main(cfg: CacheConfig):
             dataset = chunk_and_tokenize(dataset, tokenizer, max_seq_len=cfg.ctx_len)
         # Make sure the dataset is splitted into contiguous chunk
         dataset = dataset.shard(dist.get_world_size(), rank, contiguous=True)
+        all_shards_len = torch.zeros(
+            dist.get_world_size(), dtype=torch.int, device=model.device
+        )
+        cur_shards_len = torch.tensor(
+            len(dataset), dtype=torch.int, device=model.device
+        )
+        dist.all_gather_into_tensor(all_shards_len, cur_shards_len)
+        all_shards_len = all_shards_len.detach().cpu().tolist()
 
     logger.info(f"Load many sae from : {cfg.sae_path}")
     if os.path.exists(cfg.sae_path):
@@ -84,7 +92,7 @@ def main(cfg: CacheConfig):
         tokenizer,
         submodule_dict,
         batch_size=cfg.batch_size,
-        shard_size=len(dataset),
+        shard_size=sum(all_shards_len[:rank]),
     )
     if ddp:
         dist.barrier()
