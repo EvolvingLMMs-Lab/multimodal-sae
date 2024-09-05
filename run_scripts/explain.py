@@ -66,6 +66,7 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
     ### Build Explainer pipe ###
 
     def explainer_postprocess(result):
+        content, reps, result = result
         module_name = result.record.feature.module_name.replace(".", "_")
         output_path = f"{args.experiment.explanation_dir}/{module_name}.json"
         if os.path.exists(output_path):
@@ -73,7 +74,9 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
         else:
             output_file = []
 
-        output_file.append({f"{result.record.feature}": f"{result.explanation}"})
+        output_file.append(
+            {f"{result.record.feature}": f"{result.explanation}", "prompt": content}
+        )
 
         with open(output_path, "w") as f:
             json.dump(output_file, f, indent=4, ensure_ascii=False)
@@ -89,6 +92,7 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
             activations=True,
             max_tokens=500,
             temperature=0.0,
+            verbose=True,
         ),
         postprocess=explainer_postprocess,
     )
