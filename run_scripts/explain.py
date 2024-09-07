@@ -10,9 +10,9 @@ from loguru import logger
 from simple_parsing import ArgumentParser
 from transformers import AutoTokenizer
 
+from sae_auto_interp.agents.explainers import SimpleExplainer
 from sae_auto_interp.clients import SRT
 from sae_auto_interp.config import ExperimentConfig, FeatureConfig
-from sae_auto_interp.explainers import SimpleExplainer
 from sae_auto_interp.features import FeatureDataset, pool_max_activation_windows, sample
 from sae_auto_interp.pipeline import Pipeline, process_wrapper
 from sae_auto_interp.sae.data import chunk_and_tokenize
