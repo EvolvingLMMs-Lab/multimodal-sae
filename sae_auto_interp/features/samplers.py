@@ -43,8 +43,8 @@ def split_quantiles(
     for i in range(n_quantiles):
         quantile = examples[i * quantile_size : (i + 1) * quantile_size]
 
-        sample = random.sample(quantile, n_samples)
-        samples.append(sample)
+        sample = random.sample(quantile, min(len(quantile), n_samples))
+        samples.extend(sample)
 
     return samples
 
@@ -55,7 +55,6 @@ def train(
     train_type: Literal["top", "random", "quantile"],
     seed: int = 22,
     n_quantiles: int = 10,
-    chosen_quantile: int = 0,
 ):
     if train_type == "top":
         return examples[:n_train]
@@ -63,7 +62,7 @@ def train(
         random.seed(seed)
         return random.sample(examples, n_train)
     elif train_type == "quantile":
-        return split_quantiles(examples, n_quantiles, n_train)[chosen_quantile]
+        return split_quantiles(examples, n_quantiles, n_train)
     else:
         raise ValueError(f"Invalid train_type: {train_type}")
 
@@ -79,7 +78,6 @@ def sample(
         cfg.n_examples_train,
         cfg.train_type,
         cfg.n_quantiles,
-        getattr(cfg, "chosen_quantile", 0),
     )
 
     record.train = _train
