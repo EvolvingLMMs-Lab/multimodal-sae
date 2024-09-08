@@ -30,17 +30,17 @@ class ExperimentConfig(Serializable):
     n_random: int = 5
     """Number of random examples to sample"""
 
-    train_type: Literal["top", "random"] = "top"
+    train_type: Literal["top", "random", "quantile"] = "top"
     """Type of sampler to use for training"""
-
-    test_type: Literal["top", "even", "activation"] = "top"
-    """Type of sampler to use for testing"""
 
     explainer: str = "meta-llama/Meta-Llama-3.1-405B-Instruct-FP8"
     """The name of the explainer model"""
 
     explanation_dir: str = "./explanation_dir"
     """Dir to save your explanation result"""
+
+    scores_dir: str = "./scores_dir"
+    """Dir to save your scores result"""
 
     selected_layers: list[int] = list_field()
 
