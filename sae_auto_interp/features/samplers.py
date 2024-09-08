@@ -1,6 +1,6 @@
 import random
 from collections import deque
-from typing import List, Literal
+from typing import Dict, List, Literal
 
 from ..config import ExperimentConfig
 from .features import Example, FeatureRecord
@@ -81,3 +81,10 @@ def sample(
     )
 
     record.train = _train
+
+
+def sample_with_explanation(
+    record: FeatureRecord, cfg: ExperimentConfig, explanations: Dict[str, str]
+):
+    sample(record, cfg)
+    record.explanation = explanations[f"{record.feature}"]

@@ -6,7 +6,7 @@ from .constructors import (
 )
 from .features import Example, Feature, FeatureRecord
 from .loader import FeatureDataset
-from .samplers import sample
+from .samplers import sample, sample_with_explanation
 from .stats import get_neighbors, unigram
 
 __all__ = [
@@ -19,6 +19,7 @@ __all__ = [
     "random_activation_windows",
     "default_constructor",
     "sample",
+    "sample_with_explanation",
     "get_neighbors",
     "unigram",
 ]

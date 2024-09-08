@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import List
 
 import blobfile as bf
 import orjson
@@ -46,6 +47,9 @@ class FeatureRecord:
         feature: Feature,
     ):
         self.feature = feature
+        self.train: List[Example] = None
+        self.explanation: str = None
+        self.examples: List[Example] = None
 
     @property
     def max_activation(self):

@@ -47,7 +47,7 @@ class TensorBuffer(Dataset):
 
         self.activations = None
         self.locations = None
-        self._load()
+        # self._load()
 
     def __len__(self):
         return (
@@ -227,7 +227,8 @@ class FeatureDataset:
 
             return record
 
-        def _worker(buffer):
+        def _worker(buffer: TensorBuffer):
+            buffer._load()
             dl = DataLoader(
                 buffer,
                 batch_size=1,
