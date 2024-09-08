@@ -81,7 +81,7 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
     ### Load client ###
     logger.info("Setup server")
 
-    client = SRT(model="meta-llama/Meta-Llama-3.1-405B-Instruct-FP8", tp=8)
+    client = SRT(model="meta-llama/Meta-Llama-3.1-70B-Instruct", tp=8)
     # client = SRT(model="meta-llama/Meta-Llama-3.1-8B-Instruct", tp=2)
 
     ### Build Explainer pipe ###
