@@ -14,7 +14,9 @@ For each example in turn, return the score according to the rubric given:
 2 - The feature is only loosely related to the highlighted text or related to the context near the highlighted text.
 3 - The feature cleanly identifies the activating text.
 
-You must return your response in a valid Python list. Do not return anything else besides a Python list.
+########## OUTPUT REQUIREMENTS ##########
+
+You must return your response in a valid Python list. Do not return anything else besides a Python list. Make sure every element in the Python list is an integer that ranges from 0-3. If you did not see any relevant features in the examples, please just give 0 score and do not explain why you give the score. Please make sure you follows the rubric and the output requirement strictly and do not output anything else than a Python List of integers.
 """
 
 # https://www.neuronpedia.org/gpt2-small/6-res-jb/6048
