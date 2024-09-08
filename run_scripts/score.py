@@ -94,7 +94,7 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
             f"{args.experiment.scores_dir}/{module_name}/{result.record.feature}.json"
         )
         os.makedirs(
-            os.path.expanduser(f"{args.experiment.explanation_dir}/{module_name}"),
+            os.path.expanduser(f"{args.experiment.scores_dir}/{module_name}"),
             exist_ok=True,
         )
         result_data = []
@@ -106,7 +106,7 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
 
         return result
 
-    os.makedirs(os.path.expanduser(args.experiment.explanation_dir), exist_ok=True)
+    os.makedirs(os.path.expanduser(args.experiment.scores_dir), exist_ok=True)
 
     scorer_pipe = process_wrapper(
         SimpleScorer(
