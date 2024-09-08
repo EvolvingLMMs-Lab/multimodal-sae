@@ -58,10 +58,16 @@ class SimpleScorer:
             messages = self._build_prompt(examples, record.explanation)
             response = await self.client.generate(messages, **self.generation_kwargs)
             scores = self.parse_scores(response)
-            scores = literal_eval(scores)
-            scores_list.extend(scores)
-            messages_list.append(messages[-1]["content"])
-            response_list.append(response)
+            try:
+                scores = literal_eval(scores)
+                scores_list.extend(scores)
+                messages_list.append(messages[-1]["content"])
+                response_list.append(response)
+            except Exception as e:
+                # Probably some format does not match
+                # Let's just keep continue, try different prompt
+                # but eventually all don't work
+                continue
 
         result = SimpleScorerResult(record=record, scores=scores_list)
 
@@ -79,11 +85,9 @@ class SimpleScorer:
             # Return the first list find
             match = re.search(r"\[.*\]", text, re.DOTALL)
 
-            return (
-                match.group(0).strip() if match else "Explanation could not be parsed."
-            )
+            return match.group(0).strip() if match else "Scores could not be parsed."
         except Exception:
-            return "Explanation could not be parsed."
+            return "Scores could not be parsed."
 
     def _highlight(self, index, example):
         return highlight(index, example, self.tokenizer, self.threshold)
