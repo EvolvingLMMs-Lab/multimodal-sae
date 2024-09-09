@@ -75,9 +75,9 @@ def sample(
 
     _train = train(
         examples,
-        cfg.n_examples_train,
-        cfg.train_type,
-        cfg.n_quantiles,
+        n_train=cfg.n_examples_train,
+        train_type=cfg.train_type,
+        n_quantiles=cfg.n_quantiles,
     )
 
     record.train = _train
