@@ -30,6 +30,7 @@ dependencies = [
     "torchtyping",
     "torchvision",
     "transformers==4.44.0",
+    "umap-learn[plot]",
 ]
 
 
