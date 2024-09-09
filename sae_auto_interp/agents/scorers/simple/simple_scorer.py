@@ -1,6 +1,6 @@
 import re
 from ast import literal_eval
-from typing import Any, List, NamedTuple
+from typing import Any, List, NamedTuple, Union
 
 import torch
 from transformers import PreTrainedTokenizer
@@ -16,8 +16,11 @@ class SimpleScorerResult(NamedTuple):
     record: FeatureRecord
     """Feature record passed through."""
 
-    scores: Any
+    scores: List[List[int]]
     """Generated score for feature."""
+
+    max_activations: List[List[float]]
+    """The max activations from the tokens of seq"""
 
 
 class SimpleScorer:
@@ -54,22 +57,29 @@ class SimpleScorer:
         scores_list = []
         messages_list = []
         response_list = []
+        max_actvation_list = []
         for examples in splited_examples:
             messages = self._build_prompt(examples, record.explanation)
             response = await self.client.generate(messages, **self.generation_kwargs)
             scores = self.parse_scores(response)
             try:
                 scores = literal_eval(scores)
-                scores_list.extend(scores)
+                scores_list.append(scores)
                 messages_list.append(messages[-1]["content"])
                 response_list.append(response)
+                max_actvation_list.append(
+                    [example.max_activation.item() for example in examples]
+                )
             except Exception as e:
                 # Probably some format does not match
-                # Let's just keep continue, try different prompt
+                # Let's just keep continue.
+                # I have tried different prompt
                 # but eventually all don't work
                 continue
 
-        result = SimpleScorerResult(record=record, scores=scores_list)
+        result = SimpleScorerResult(
+            record=record, scores=scores_list, max_activations=max_actvation_list
+        )
 
         if self.verbose:
             return (
