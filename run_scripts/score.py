@@ -99,7 +99,13 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
         )
         result_data = []
         for idx, messages in enumerate(messages_list):
-            result_data.append({"examples": messages, "scores": result.scores[idx]})
+            result_data.append(
+                {
+                    "examples": messages,
+                    "scores": result.scores[idx],
+                    "max_activations": result.max_activations[idx],
+                }
+            )
 
         with open(output_path, "w") as f:
             json.dump(result_data, f, indent=4)
