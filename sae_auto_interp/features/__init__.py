@@ -1,4 +1,4 @@
-from .cache import FeatureCache
+from .cache import FeatureCache, FeatureImageCache
 from .constructors import (
     default_constructor,
     pool_max_activation_windows,
@@ -11,6 +11,7 @@ from .stats import get_neighbors, unigram
 
 __all__ = [
     "FeatureCache",
+    "FeatureImageCache",
     "FeatureDataset",
     "Feature",
     "FeatureRecord",
