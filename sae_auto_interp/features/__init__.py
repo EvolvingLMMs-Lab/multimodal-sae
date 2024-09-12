@@ -2,6 +2,7 @@ from .cache import FeatureCache, FeatureImageCache
 from .constructors import (
     default_constructor,
     pool_max_activation_windows,
+    pool_max_activations_windows_image,
     random_activation_windows,
 )
 from .features import Example, Feature, FeatureRecord
@@ -17,6 +18,7 @@ __all__ = [
     "FeatureRecord",
     "Example",
     "pool_max_activation_windows",
+    "pool_max_activations_windows_image",
     "random_activation_windows",
     "default_constructor",
     "sample",

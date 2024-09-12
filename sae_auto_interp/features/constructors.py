@@ -1,8 +1,9 @@
 import torch
+from datasets import Dataset
 from torchtyping import TensorType
 
 from ..config import FeatureConfig
-from .features import FeatureRecord, prepare_examples
+from .features import FeatureRecord, prepare_examples, prepare_image_examples
 from .loader import BufferOutput
 
 
@@ -66,7 +67,7 @@ def _top_k_pools(dense_activations, token_batches, ctx_len, max_examples):
 
 
 def pool_max_activation_windows(
-    record,
+    record: FeatureRecord,
     buffer_output: BufferOutput,
     tokens: TensorType["batch", "seq"],
     cfg: FeatureConfig,
@@ -81,6 +82,42 @@ def pool_max_activation_windows(
 
     # Set as examples
     record.examples = prepare_examples(token_windows, activation_windows)
+
+
+def pool_max_activations_windows_image(
+    record: FeatureRecord,
+    buffer_output: BufferOutput,
+    tokens: Dataset,
+    cfg: FeatureConfig,
+):
+    activations = buffer_output.activations
+    locations = buffer_output.locations
+
+    # Num of Images
+    batch_size = len(tokens)
+    # Create a fake seq len here,
+    # even llava-ov have less than 8000 image tokens so this should be enough for now
+    seq_len = 8000
+    fake_tokens = torch.zeros(batch_size, seq_len)
+    sparse_activations = torch.sparse_coo_tensor(
+        locations.t(), activations, (batch_size, seq_len)
+    )
+    dense_activations = sparse_activations.to_dense()
+
+    avg_pools = torch.nn.functional.avg_pool1d(
+        dense_activations, kernel_size=seq_len, stride=seq_len
+    )
+
+    top_indices = torch.topk(avg_pools.flatten(), cfg.max_examples).indices.tolist()
+
+    # will construct fake tokens eventually
+    top_images = tokens.select(indices=top_indices)["image"]
+    # top_images = tokens.select(indices=[0, 1, 2])["image"]
+
+    record.examples = prepare_image_examples(
+        fake_tokens[top_indices], dense_activations[top_indices], top_images
+    )
+    # record.examples = prepare_image_examples(fake_tokens[:3], dense_activations[:3], top_images)
 
 
 def random_activation_windows(

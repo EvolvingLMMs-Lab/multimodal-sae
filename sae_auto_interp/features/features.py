@@ -3,6 +3,7 @@ from typing import List
 
 import blobfile as bf
 import orjson
+from PIL import Image
 from torchtyping import TensorType
 
 
@@ -22,6 +23,11 @@ class Example:
         return max(self.activations)
 
 
+@dataclass
+class ImageExample(Example):
+    image: Image
+
+
 def prepare_examples(tokens, activations):
     return [
         Example(
@@ -29,6 +35,13 @@ def prepare_examples(tokens, activations):
             activations=acts,
         )
         for toks, acts in zip(tokens, activations)
+    ]
+
+
+def prepare_image_examples(tokens, activations, images):
+    return [
+        ImageExample(tokens=toks, activations=acts, image=image)
+        for toks, acts, image in zip(tokens, activations, images)
     ]
 
 
