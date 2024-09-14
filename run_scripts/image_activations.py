@@ -22,7 +22,8 @@ from sae_auto_interp.pipeline import Pipeline
 
 async def image_saver(record: FeatureRecord, save_dir: str):
     feature_name = f"{record.feature}"
-    save_dir = os.path.join(save_dir, feature_name)
+    module_name = record.feature.module_name.replace(".", "_")
+    save_dir = os.path.join(save_dir, module_name, feature_name)
     os.makedirs(save_dir, exist_ok=True)
     for idx, example in enumerate(record.examples):
         example.image.save(os.path.join(save_dir, f"examples_{idx}.jpg"))
@@ -41,7 +42,7 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
             if idx in args.experiment.selected_layers
         ]
     logger.info(f"Module list : {modules}")
-    features = {mod: torch.arange(50) for mod in modules}
+    features = {mod: torch.arange(150) for mod in modules}
 
     dataset = FeatureDataset(
         raw_dir=args.experiment.save_dir,
