@@ -1,6 +1,7 @@
 import torch
 from datasets import Dataset
 from torchtyping import TensorType
+from transformers import AutoProcessor
 
 from ..config import FeatureConfig
 from .features import FeatureRecord, prepare_examples, prepare_image_examples
@@ -89,6 +90,7 @@ def pool_max_activations_windows_image(
     buffer_output: BufferOutput,
     tokens: Dataset,
     cfg: FeatureConfig,
+    processor: AutoProcessor,
 ):
     activations = buffer_output.activations
     locations = buffer_output.locations
@@ -115,7 +117,7 @@ def pool_max_activations_windows_image(
     # top_images = tokens.select(indices=[0, 1, 2])["image"]
 
     record.examples = prepare_image_examples(
-        fake_tokens[top_indices], dense_activations[top_indices], top_images
+        fake_tokens[top_indices], dense_activations[top_indices], top_images, processor
     )
     # record.examples = prepare_image_examples(fake_tokens[:3], dense_activations[:3], top_images)
 
