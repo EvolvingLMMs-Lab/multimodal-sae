@@ -9,6 +9,7 @@ import torch
 from datasets import load_dataset
 from loguru import logger
 from simple_parsing import ArgumentParser
+from transformers import AutoProcessor
 
 from sae_auto_interp.config import ExperimentConfig, FeatureConfig
 from sae_auto_interp.features import (
@@ -27,12 +28,16 @@ async def image_saver(record: FeatureRecord, save_dir: str):
     os.makedirs(save_dir, exist_ok=True)
     for idx, example in enumerate(record.examples):
         example.image.save(os.path.join(save_dir, f"examples_{idx}.jpg"))
+        example.activation_image.save(
+            os.path.join(save_dir, f"activated_examples_{idx}.jpg")
+        )
 
 
 def main(args: Union[FeatureConfig, ExperimentConfig]):
     ### Load tokens ###
     logger.info("Load dataset")
     tokens = load_dataset(args.experiment.dataset, split=args.experiment.split)
+    processor = AutoProcessor.from_pretrained(args.experiment.model)
 
     modules = os.listdir(args.experiment.save_dir)
     if args.experiment.selected_layers:
@@ -73,7 +78,10 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
     loader = partial(
         dataset.load,
         constructor=partial(
-            pool_max_activations_windows_image, tokens=tokens, cfg=args.feature
+            pool_max_activations_windows_image,
+            tokens=tokens,
+            cfg=args.feature,
+            processor=processor,
         ),
         sampler=partial(
             sample_with_explanation, cfg=args.experiment, explanations=explanations
