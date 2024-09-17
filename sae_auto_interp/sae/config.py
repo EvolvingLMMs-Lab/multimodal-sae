@@ -25,6 +25,9 @@ class SaeConfig(Serializable):
     multi_topk: bool = False
     """Use Multi-TopK loss."""
 
+    signed: bool = False
+    """To be able to load old versions of sae"""
+
 
 @dataclass
 class TrainConfig(Serializable):
