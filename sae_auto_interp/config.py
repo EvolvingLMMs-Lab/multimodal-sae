@@ -109,3 +109,24 @@ class CacheConfig(Serializable):
 
     verbosity: str = "INFO"
     """Verbosity level"""
+
+
+@dataclass
+class AttributionConfig(Serializable):
+    model: str = field(
+        default="EleutherAI/pythia-160m",
+        positional=True,
+    )
+    """Name of the model to use."""
+
+    data_path: str = "./data/digit.json"
+    """Path to the dataset. Should be a formated json file"""
+
+    sae_path: Union[str, None] = None
+    """Path to your trained sae, can be either local or on the hub"""
+
+    selected_sae: str = "layers.24"
+    """Name of the selected sae"""
+
+    save_dir: str = "./attribution_cache"
+    """Save dir for your feature attribution result"""
