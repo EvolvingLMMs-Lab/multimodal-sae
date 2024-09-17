@@ -7,6 +7,7 @@ from .constructors import (
 )
 from .features import Example, Feature, FeatureRecord
 from .loader import FeatureDataset
+from .patching import Attribution
 from .samplers import sample, sample_with_explanation
 from .stats import get_neighbors, unigram
 
@@ -25,4 +26,5 @@ __all__ = [
     "sample_with_explanation",
     "get_neighbors",
     "unigram",
+    "Attribution",
 ]
