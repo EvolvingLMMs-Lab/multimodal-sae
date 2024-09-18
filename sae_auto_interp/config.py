@@ -48,7 +48,7 @@ class ExperimentConfig(Serializable):
     """Dataset split to use."""
 
     save_dir: str = "./features_cache"
-    """Save dir for your feature"""
+    """Save dir for your previous cached feature"""
 
 
 @dataclass
