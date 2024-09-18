@@ -5,7 +5,18 @@ You will be given a certain feature of text, such as "male pronouns" or "text wi
 
 Some examples might be mislabeled. Your task is to determine if every single token within << and >> is correctly labeled. Consider that all provided examples could be correct, none of the examples could be correct, or a mix. An example is only correct if every marked token is representative of the feature
 
-For each example in turn, return 1 if the sentence is correctly labeled or 0 if the tokens are mislabeled. You must return your response in a valid Python list. Do not return anything else besides a Python list.
+For each example in turn, return the score according to the rubric given:
+
+########## RUBRICS ##########
+
+0 - The feature is completely irrelevant throughout the context (relative to the base distribution of the internet).
+1 - The feature is related to the context, but not near the highlighted text or only vaguely related.
+2 - The feature is only loosely related to the highlighted text or related to the context near the highlighted text.
+3 - The feature cleanly identifies the activating text.
+
+########## OUTPUT REQUIREMENTS ##########
+
+You must return your response in a valid Python list. Do not return anything else besides a Python list. Make sure every element in the Python list is an integer that ranges from 0-3. If you did not see any relevant features in the examples, please just give 0 score and do not explain why you give the score. Please make sure you follows the rubric and the output requirement strictly and do not output anything else than a Python List of integers.
 """
 
 # https://www.neuronpedia.org/gpt2-small/6-res-jb/6048
@@ -28,7 +39,7 @@ Example 4:<< line>>, with the left side âĢĶ namely<< tackle>> Byron Bell at<<
 #   "example_4": 1
 # }"""
 
-DSCORER_RESPONSE_ONE = "[1,0,0,1,1]"
+DSCORER_RESPONSE_ONE = "[3, 0, 1, 1, 1]"
 
 # https://www.neuronpedia.org/gpt2-small/6-res-jb/9396
 DSCORER_EXAMPLE_TWO = """Feature explanation: The word "guys" in the phrase "you guys".
@@ -50,7 +61,7 @@ Example 4:<< the>><|endoftext|>ľI want to<< remind>> you all that 10 days ago (
 #   "example_4": 0
 # }"""
 
-DSCORER_RESPONSE_TWO = "[0,0,0,0,0]"
+DSCORER_RESPONSE_TWO = "[3, 0, 0, 3, 0]"
 
 # https://www.neuronpedia.org/gpt2-small/8-res-jb/12654
 DSCORER_EXAMPLE_THREE = """Feature explanation: "of" before words that start with a capital letter.
@@ -72,7 +83,7 @@ Example 4: and fair investigation not even include the Director<< of>> Athletics
 #   "example_4": 1
 # }"""
 
-DSCORER_RESPONSE_THREE = "[1,1,1,1,1]"
+DSCORER_RESPONSE_THREE = "[3, 3, 3, 3, 3]"
 
 GENERATION_PROMPT = """Feature explanation: {explanation}
 

@@ -6,7 +6,7 @@ from typing import NamedTuple
 
 import aiofiles
 
-from ..features.features import FeatureRecord
+from ...features.features import FeatureRecord
 
 
 class ExplainerResult(NamedTuple):

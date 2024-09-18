@@ -2,6 +2,7 @@ import re
 
 import torch
 
+from ...utils import highlight, join_activations, normalize_examples
 from ..explainer import Explainer, ExplainerResult
 from .prompt_builder import build_prompt
 
@@ -31,17 +32,12 @@ class SimpleExplainer(Explainer):
         self.threshold = threshold
         self.generation_kwargs = generation_kwargs
 
-    def normalize_examples(self, record, train):
-        max_activation = record.examples[0].max_activation
-
-        for example in train:
-            example.normalized_activations = torch.floor(
-                10 * example.activations / max_activation
-            )
+    def _normalize_examples(self, record, train):
+        normalize_examples(record, train)
 
     async def __call__(self, record):
         if self.activations:
-            self.normalize_examples(record, record.train)
+            self._normalize_examples(record, record.train)
 
         if self.logits:
             messages = self._build_prompt(record.train, record.top_logits)
@@ -72,42 +68,10 @@ class SimpleExplainer(Explainer):
             return "Explanation could not be parsed."
 
     def _highlight(self, index, example):
-        result = f"Example {index}: "
-
-        threshold = example.max_activation * self.threshold
-        str_toks = self.tokenizer.batch_decode(example.tokens)
-        example.str_toks = str_toks
-        activations = example.activations
-
-        def check(i):
-            return activations[i] > threshold
-
-        i = 0
-        while i < len(str_toks):
-            if check(i):
-                result += "<<"
-
-                while i < len(str_toks) and check(i):
-                    result += str_toks[i]
-                    i += 1
-                result += ">>"
-            else:
-                result += str_toks[i]
-                i += 1
-
-        return "".join(result)
+        return highlight(index, example, self.tokenizer, self.threshold)
 
     def _join_activations(self, example):
-        activations = []
-
-        threshold = example.max_activation * self.threshold
-        for i, normalized in enumerate(example.normalized_activations):
-            if example.activations[i] > threshold:
-                activations.append((example.str_toks[i], int(normalized)))
-
-        acts = ", ".join(f'("{item[0]}" : {item[1]})' for item in activations)
-
-        return "Activations: " + acts
+        return join_activations(example, self.threshold)
 
     def _build_prompt(self, examples, top_logits):
         highlighted_examples = []

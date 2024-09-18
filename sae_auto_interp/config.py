@@ -30,11 +30,8 @@ class ExperimentConfig(Serializable):
     n_random: int = 5
     """Number of random examples to sample"""
 
-    train_type: Literal["top", "random"] = "top"
+    train_type: Literal["top", "random", "quantile"] = "top"
     """Type of sampler to use for training"""
-
-    test_type: Literal["top", "even", "activation"] = "top"
-    """Type of sampler to use for testing"""
 
     explainer: str = "meta-llama/Meta-Llama-3.1-405B-Instruct-FP8"
     """The name of the explainer model"""
@@ -42,13 +39,16 @@ class ExperimentConfig(Serializable):
     explanation_dir: str = "./explanation_dir"
     """Dir to save your explanation result"""
 
+    scores_dir: str = "./scores_dir"
+    """Dir to save your scores result"""
+
     selected_layers: list[int] = list_field()
 
     split: str = "train"
     """Dataset split to use."""
 
     save_dir: str = "./features_cache"
-    """Save dir for your feature"""
+    """Save dir for your previous cached feature"""
 
 
 @dataclass
@@ -109,3 +109,24 @@ class CacheConfig(Serializable):
 
     verbosity: str = "INFO"
     """Verbosity level"""
+
+
+@dataclass
+class AttributionConfig(Serializable):
+    model: str = field(
+        default="EleutherAI/pythia-160m",
+        positional=True,
+    )
+    """Name of the model to use."""
+
+    data_path: str = "./data/digit.json"
+    """Path to the dataset. Should be a formated json file"""
+
+    sae_path: Union[str, None] = None
+    """Path to your trained sae, can be either local or on the hub"""
+
+    selected_sae: str = "layers.24"
+    """Name of the selected sae"""
+
+    save_dir: str = "./attribution_cache"
+    """Save dir for your feature attribution result"""
