@@ -50,6 +50,9 @@ class ExperimentConfig(Serializable):
     save_dir: str = "./features_cache"
     """Save dir for your previous cached feature"""
 
+    filters_path: str = None
+    """The json file for filtering the features and sae should be in a json file"""
+
 
 @dataclass
 class FeatureConfig(Serializable):
@@ -109,6 +112,9 @@ class CacheConfig(Serializable):
 
     verbosity: str = "INFO"
     """Verbosity level"""
+
+    filters_path: str = None
+    """The json file for filtering the features and sae should be in a json file"""
 
 
 @dataclass

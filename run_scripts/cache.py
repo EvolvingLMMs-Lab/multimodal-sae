@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 
 import torch
@@ -63,6 +64,13 @@ def main(cfg: CacheConfig):
         trust_remote_code=True,
     )
 
+    if cfg.filters_path is not None:
+        with open(cfg.filters_path, "r") as f:
+            filters = json.load(f)
+        filters = {k: torch.tensor(v).to(model.device) for k, v in filters.items()}
+    else:
+        filters = None
+
     # Awkward hack to prevent other ranks from duplicating data preprocessing
     if not ddp or rank == 0:
         dataset = chunk_and_tokenize(dataset, tokenizer, max_seq_len=cfg.ctx_len)
@@ -82,10 +90,29 @@ def main(cfg: CacheConfig):
         all_shards_len = all_shards_len.detach().cpu().tolist()
 
     logger.info(f"Load many sae from : {cfg.sae_path}")
+    submodule_dict = {}
     if os.path.exists(cfg.sae_path):
-        submodule_dict = Sae.load_many(cfg.sae_path, local=True, device=model.device)
+        if filters is not None:
+            for module_name, indices in filters.items():
+                logger.info(f"Load sae : {module_name}")
+                sae = Sae.load_from_disk(
+                    os.path.join(cfg.sae_path, module_name), device=model.device
+                )
+                submodule_dict[module_name] = sae
+        else:
+            submodule_dict = Sae.load_many(
+                cfg.sae_path, local=True, device=model.device
+            )
     else:
-        submodule_dict = Sae.load_many(cfg.sae_path, local=False, device=model.device)
+        if filters is not None:
+            for module_name, indices in filters.items():
+                logger.info(f"Load sae : {module_name}")
+                sae = Sae.load_from_hub(cfg.sae_path, module_name, device=model.device)
+                submodule_dict[module_name] = sae
+        else:
+            submodule_dict = Sae.load_many(
+                cfg.sae_path, local=False, device=model.device
+            )
 
     cache = FeatureCache(
         model,
@@ -93,6 +120,7 @@ def main(cfg: CacheConfig):
         submodule_dict,
         batch_size=cfg.batch_size,
         shard_size=sum(all_shards_len[:rank]),
+        filters=filters,
     )
     if ddp:
         dist.barrier()

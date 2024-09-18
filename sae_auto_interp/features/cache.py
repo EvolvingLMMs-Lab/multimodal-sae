@@ -124,7 +124,7 @@ class FeatureCache:
         self.width = (
             first_sae.cfg.num_latents
             if first_sae.cfg.num_latents
-            else first_sae.cfg.d_in * first_sae.cfg.expansion_factor
+            else first_sae.d_in * first_sae.cfg.expansion_factor
         )
 
         self.cache = Cache(shard_size, filters, batch_size=batch_size)
