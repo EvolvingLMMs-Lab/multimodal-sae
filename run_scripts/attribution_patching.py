@@ -70,7 +70,8 @@ def main(cfg: AttributionConfig):
         }
         os.makedirs(cfg.save_dir, exist_ok=True)
         output_file = os.path.join(
-            cfg.save_dir, f"{model_id.split('/')[-1]}_{cfg.selected_sae}.safetensors"
+            cfg.save_dir,
+            f"{model_id.split('/')[-1]}_{cfg.selected_sae.replace('.','_')}.safetensors",
         )
         logger.info(output_file)
         save_file(attribution_dict, output_file)
