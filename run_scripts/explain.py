@@ -5,6 +5,7 @@ from functools import partial
 from multiprocessing import cpu_count
 from typing import Union
 
+import torch
 from datasets import load_dataset
 from loguru import logger
 from simple_parsing import ArgumentParser
@@ -36,7 +37,16 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
     tokens = tokens["input_ids"]
 
     modules = os.listdir(args.experiment.save_dir)
-    if args.experiment.selected_layers:
+    if args.experiment.filters_path is not None:
+        with open(args.experiment.filters_path, "r") as f:
+            filters = json.load(f)
+        filters = {k: torch.tensor(v) for k, v in filters.items()}
+    else:
+        filters = None
+
+    if filters is not None:
+        modules = [mod for mod in modules if mod in filters]
+    elif args.experiment.selected_layers:
         modules = [
             mod
             for idx, mod in enumerate(modules)
@@ -48,6 +58,7 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
         raw_dir=args.experiment.save_dir,
         cfg=args.feature,
         modules=modules,
+        features=filters,
     )
 
     loader = partial(
