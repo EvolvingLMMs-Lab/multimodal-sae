@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, TypeVar, Union
 
 import blobfile as bf
 import orjson
@@ -30,6 +30,9 @@ class Example:
 class ImageExample(Example):
     image: Image
     activation_image: Image
+
+
+ExampleType = TypeVar("ExampleType", bound=Union[Example, ImageExample])
 
 
 def prepare_examples(tokens, activations):
@@ -104,9 +107,9 @@ class FeatureRecord:
         feature: Feature,
     ):
         self.feature = feature
-        self.train: List[Example] = None
+        self.train: List[ExampleType] = None
         self.explanation: str = None
-        self.examples: List[Example] = None
+        self.examples: List[ExampleType] = None
 
     @property
     def max_activation(self):
