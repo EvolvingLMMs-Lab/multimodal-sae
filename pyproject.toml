@@ -22,7 +22,7 @@ dependencies = [
     "nnsight",
     "orjson",
     "openai",
-    "pillow",
+    "pillow==10.4.0",
     "safetensors",
     "simple_parsing",
     "sglang[all]",
