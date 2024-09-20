@@ -18,6 +18,7 @@ from sae_auto_interp.config import CacheConfig
 from sae_auto_interp.features import FeatureImageCache
 from sae_auto_interp.sae import Sae
 from sae_auto_interp.sae.data import chunk_and_tokenize
+from sae_auto_interp.utils import load_filter
 
 
 def main(cfg: CacheConfig):
@@ -70,9 +71,7 @@ def main(cfg: CacheConfig):
         trust_remote_code=True,
     )
     if cfg.filters_path is not None:
-        with open(cfg.filters_path, "r") as f:
-            filters = json.load(f)
-        filters = {k: torch.tensor(v).to(model.device) for k, v in filters.items()}
+        filters = load_filter(cfg.filters_path, device=model.device)
     else:
         filters = None
 

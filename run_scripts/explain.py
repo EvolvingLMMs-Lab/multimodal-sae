@@ -17,6 +17,7 @@ from sae_auto_interp.config import ExperimentConfig, FeatureConfig
 from sae_auto_interp.features import FeatureDataset, pool_max_activation_windows, sample
 from sae_auto_interp.pipeline import Pipeline, process_wrapper
 from sae_auto_interp.sae.data import chunk_and_tokenize
+from sae_auto_interp.utils import load_filter
 
 
 def main(args: Union[FeatureConfig, ExperimentConfig]):
@@ -38,9 +39,7 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
 
     modules = os.listdir(args.experiment.save_dir)
     if args.experiment.filters_path is not None:
-        with open(args.experiment.filters_path, "r") as f:
-            filters = json.load(f)
-        filters = {k: torch.tensor(v) for k, v in filters.items()}
+        filters = load_filter(args.experiment.filters_path, device="cpu")
     else:
         filters = None
 

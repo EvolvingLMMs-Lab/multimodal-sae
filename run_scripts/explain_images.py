@@ -11,6 +11,8 @@ from loguru import logger
 from simple_parsing import ArgumentParser
 from transformers import AutoProcessor
 
+from sae_auto_interp.agents.explainers import ExplainerResult, ImageExplainer
+from sae_auto_interp.clients import SRT
 from sae_auto_interp.config import ExperimentConfig, FeatureConfig
 from sae_auto_interp.features import (
     FeatureDataset,
@@ -18,20 +20,8 @@ from sae_auto_interp.features import (
     sample_with_explanation,
 )
 from sae_auto_interp.features.features import FeatureRecord
-from sae_auto_interp.pipeline import Pipeline
+from sae_auto_interp.pipeline import Pipeline, process_wrapper
 from sae_auto_interp.utils import load_filter
-
-
-async def image_saver(record: FeatureRecord, save_dir: str):
-    feature_name = f"{record.feature}"
-    module_name = record.feature.module_name.replace(".", "_")
-    save_dir = os.path.join(save_dir, module_name, feature_name)
-    os.makedirs(save_dir, exist_ok=True)
-    for idx, example in enumerate(record.examples):
-        example.image.save(os.path.join(save_dir, f"examples_{idx}.jpg"))
-        example.activation_image.save(
-            os.path.join(save_dir, f"activated_examples_{idx}.jpg")
-        )
 
 
 def main(args: Union[FeatureConfig, ExperimentConfig]):
@@ -41,16 +31,19 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
     processor = AutoProcessor.from_pretrained(args.experiment.model)
 
     modules = os.listdir(args.experiment.save_dir)
-    if args.experiment.selected_layers:
+    if args.experiment.filters_path is not None:
+        filters = load_filter(args.experiment.filters_path, device="cpu")
+    else:
+        filters = None
+
+    if filters is not None:
+        modules = [mod for mod in modules if mod in filters]
+    elif args.experiment.selected_layers:
         modules = [
             mod
             for idx, mod in enumerate(modules)
             if idx in args.experiment.selected_layers
         ]
-    if args.experiment.filters_path is not None:
-        filters = load_filter(args.experiment.filters_path, device="cpu")
-    else:
-        filters = None
     logger.info(f"Module list : {modules}")
 
     dataset = FeatureDataset(
@@ -95,14 +88,60 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
     save_dir = os.path.join(args.experiment.explanation_dir, "images")
     os.makedirs(save_dir, exist_ok=True)
 
-    saver = partial(
-        image_saver,
-        save_dir=save_dir,
+    ### Load client ###
+    logger.info("Setup server")
+
+    client = SRT(model="lmms-lab/llava-onevision-qwen2-7b-ov", tp=2)
+
+    ### Build Explainer pipe ###
+
+    def explainer_postprocess(result: ExplainerResult):
+        content, reps, result = result
+        record = result.record
+        images = [train.image for train in record.train]
+        activated_images = [train.activation_image for train in record.train]
+        module_name = result.record.feature.module_name.replace(".", "_")
+        image_output_dir = f"{args.experiment.explanation_dir}/images/{module_name}"
+        os.makedirs(image_output_dir, exist_ok=True)
+        output_path = f"{args.experiment.explanation_dir}/{module_name}.json"
+        if os.path.exists(output_path):
+            output_file = json.load(open(output_path, "r"))
+        else:
+            output_file = []
+
+        output_file.append(
+            {f"{result.record.feature}": f"{result.explanation}", "prompt": content}
+        )
+
+        with open(output_path, "w") as f:
+            json.dump(output_file, f, indent=4, ensure_ascii=False)
+
+        idx = 0
+        for image, activated_image in zip(images, activated_images):
+            image.save(f"{image_output_dir}/top_{idx}.jpg")
+            activated_image.save(f"{image_output_dir}/top{idx}_activated.jpg")
+
+        return result
+
+    os.makedirs(os.path.expanduser(args.experiment.explanation_dir), exist_ok=True)
+
+    explainer_pipe = process_wrapper(
+        ImageExplainer(
+            client=client,
+            verbose=True,
+        ),
+        postprocess=explainer_postprocess,
     )
 
-    pipeline = Pipeline(loader, saver)
+    ### Build the pipeline ###
+
+    pipeline = Pipeline(
+        loader,
+        explainer_pipe,
+    )
 
     asyncio.run(pipeline.run(max_processes=cpu_count() // 2))
+    client.clean()
 
 
 if __name__ == "__main__":

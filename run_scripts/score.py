@@ -20,6 +20,7 @@ from sae_auto_interp.features import (
 )
 from sae_auto_interp.pipeline import Pipeline, process_wrapper
 from sae_auto_interp.sae.data import chunk_and_tokenize
+from sae_auto_interp.utils import load_filter
 
 
 def main(args: Union[FeatureConfig, ExperimentConfig]):
@@ -46,12 +47,17 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
             for idx, mod in enumerate(modules)
             if idx in args.experiment.selected_layers
         ]
+    if args.experiment.filters_path is not None:
+        filters = load_filter(args.experiment.filters_path, device="cpu")
+    else:
+        filters = None
     logger.info(f"Module list : {modules}")
 
     dataset = FeatureDataset(
         raw_dir=args.experiment.save_dir,
         cfg=args.feature,
         modules=modules,
+        features=filters,
     )
 
     # Put every explanations in to a single dict with
