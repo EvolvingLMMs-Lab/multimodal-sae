@@ -1,7 +1,13 @@
+import json
+import os
+from typing import Dict
+
+import torch
 from torchtyping import TensorType
 from transformers import AutoTokenizer
 
 from .features import FeatureRecord
+from .sae import Sae
 
 
 def load_tokenized_data(
@@ -28,14 +34,50 @@ def load_tokenized_data(
 
 
 def load_filter(path: str, device: str = "cuda:0"):
-    import json
-
-    import torch
-
     with open(path) as f:
         filter = json.load(f)
 
     return {key: torch.tensor(value, device=device) for key, value in filter.items()}
+
+
+def load_explanation(explanation_dir: str):
+    explanations = {}
+    explanation_files = os.listdir(explanation_dir)
+    explanation_files = [
+        e for e in explanation_files if os.path.isfile(os.path.join(explanation_dir, e))
+    ]
+    for file in explanation_files:
+        with open(os.path.join(explanation_dir, file), "r") as f:
+            data = json.load(f)
+
+        for da in data:
+            for key_name, content in da.items():
+                if key_name != "prompt":
+                    explanations[key_name] = content
+    return explanations
+
+
+def load_saes(
+    sae_path: str, filters: Dict[str, TensorType["indices"]] = None, device="cuda:0"
+) -> Dict[str, Sae]:
+    if os.path.exists(sae_path):
+        if filters is not None:
+            for module_name, indices in filters.items():
+                sae = Sae.load_from_disk(
+                    os.path.join(sae_path, module_name), device=device
+                )
+                submodule_dict[module_name] = sae
+        else:
+            submodule_dict = Sae.load_many(sae_path, local=True, device=device)
+    else:
+        if filters is not None:
+            for module_name, indices in filters.items():
+                sae = Sae.load_from_hub(sae_path, module_name, device=device)
+                submodule_dict[module_name] = sae
+        else:
+            submodule_dict = Sae.load_many(sae_path, local=False, device=device)
+
+    return submodule_dict
 
 
 def display(
