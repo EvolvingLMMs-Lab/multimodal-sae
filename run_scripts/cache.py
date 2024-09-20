@@ -13,7 +13,7 @@ from sae_auto_interp.config import CacheConfig
 from sae_auto_interp.features import FeatureCache
 from sae_auto_interp.sae import Sae
 from sae_auto_interp.sae.data import chunk_and_tokenize
-from sae_auto_interp.utils import load_filter
+from sae_auto_interp.utils import load_filter, load_saes
 
 
 def main(cfg: CacheConfig):
@@ -89,29 +89,7 @@ def main(cfg: CacheConfig):
         all_shards_len = all_shards_len.detach().cpu().tolist()
 
     logger.info(f"Load many sae from : {cfg.sae_path}")
-    submodule_dict = {}
-    if os.path.exists(cfg.sae_path):
-        if filters is not None:
-            for module_name, indices in filters.items():
-                logger.info(f"Load sae : {module_name}")
-                sae = Sae.load_from_disk(
-                    os.path.join(cfg.sae_path, module_name), device=model.device
-                )
-                submodule_dict[module_name] = sae
-        else:
-            submodule_dict = Sae.load_many(
-                cfg.sae_path, local=True, device=model.device
-            )
-    else:
-        if filters is not None:
-            for module_name, indices in filters.items():
-                logger.info(f"Load sae : {module_name}")
-                sae = Sae.load_from_hub(cfg.sae_path, module_name, device=model.device)
-                submodule_dict[module_name] = sae
-        else:
-            submodule_dict = Sae.load_many(
-                cfg.sae_path, local=False, device=model.device
-            )
+    submodule_dict = load_saes(cfg.sae_path, filters=filters, device=model.device)
 
     cache = FeatureCache(
         model,

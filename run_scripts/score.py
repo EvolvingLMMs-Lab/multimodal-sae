@@ -20,7 +20,7 @@ from sae_auto_interp.features import (
 )
 from sae_auto_interp.pipeline import Pipeline, process_wrapper
 from sae_auto_interp.sae.data import chunk_and_tokenize
-from sae_auto_interp.utils import load_filter
+from sae_auto_interp.utils import load_explanation, load_filter
 
 
 def main(args: Union[FeatureConfig, ExperimentConfig]):
@@ -63,16 +63,7 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
     # Put every explanations in to a single dict with
     # key = the module layer + the feature name
     # value = the explanation
-    explanations = {}
-    explanation_files = os.listdir(args.experiment.explanation_dir)
-    for file in explanation_files:
-        with open(os.path.join(args.experiment.explanation_dir, file), "r") as f:
-            data = json.load(f)
-
-        for da in data:
-            for key_name, content in da.items():
-                if key_name != "prompt":
-                    explanations[key_name] = content
+    explanations = load_explanation(args.experiment.explanation_dir)
 
     loader = partial(
         dataset.load,

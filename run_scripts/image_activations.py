@@ -19,7 +19,7 @@ from sae_auto_interp.features import (
 )
 from sae_auto_interp.features.features import FeatureRecord
 from sae_auto_interp.pipeline import Pipeline
-from sae_auto_interp.utils import load_filter
+from sae_auto_interp.utils import load_explanation, load_filter
 
 
 async def image_saver(record: FeatureRecord, save_dir: str):
@@ -63,21 +63,7 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
     # Put every explanations in to a single dict with
     # key = the module layer + the feature name
     # value = the explanation
-    explanations = {}
-    explanation_files = os.listdir(args.experiment.explanation_dir)
-    explanation_files = [
-        e
-        for e in explanation_files
-        if os.path.isfile(os.path.join(args.experiment.explanation_dir, e))
-    ]
-    for file in explanation_files:
-        with open(os.path.join(args.experiment.explanation_dir, file), "r") as f:
-            data = json.load(f)
-
-        for da in data:
-            for key_name, content in da.items():
-                if key_name != "prompt":
-                    explanations[key_name] = content
+    explanations = load_explanation(args.experiment.explanation_dir)
 
     loader = partial(
         dataset.load,
