@@ -32,6 +32,8 @@ class SRT(Client):
         self.model = model
         other_args = []
         other_args.extend(["--tensor-parallel-size", str(tp)])
+        if "llava" in model:
+            other_args.extend(["--chat-template", "chatml-llava"])
         self.process = popen_launch_server(
             self.model,
             self.base_url,
