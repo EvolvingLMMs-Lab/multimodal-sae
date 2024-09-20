@@ -17,7 +17,7 @@ from sae_auto_interp.config import ExperimentConfig, FeatureConfig
 from sae_auto_interp.features import (
     FeatureDataset,
     pool_max_activations_windows_image,
-    sample_with_explanation,
+    sample,
 )
 from sae_auto_interp.features.features import FeatureRecord
 from sae_auto_interp.pipeline import Pipeline, process_wrapper
@@ -53,11 +53,6 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
         features=filters,
     )
 
-    # Put every explanations in to a single dict with
-    # key = the module layer + the feature name
-    # value = the explanation
-    explanations = load_explanation(args.experiment.explanation_dir)
-
     loader = partial(
         dataset.load,
         constructor=partial(
@@ -66,18 +61,15 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
             cfg=args.feature,
             processor=processor,
         ),
-        sampler=partial(
-            sample_with_explanation, cfg=args.experiment, explanations=explanations
-        ),
+        sampler=partial(sample, cfg=args.experiment),
     )
 
-    save_dir = os.path.join(args.experiment.explanation_dir, "images")
-    os.makedirs(save_dir, exist_ok=True)
+    os.makedirs(os.path.expanduser(args.experiment.explanation_dir), exist_ok=True)
 
     ### Load client ###
     logger.info("Setup server")
 
-    client = SRT(model="lmms-lab/llava-onevision-qwen2-7b-ov", tp=2)
+    client = SRT(model="lmms-lab/llava-onevision-qwen2-72b-ov", tp=8)
 
     ### Build Explainer pipe ###
 
@@ -87,7 +79,7 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
         images = [train.image for train in record.train]
         activated_images = [train.activation_image for train in record.train]
         module_name = result.record.feature.module_name.replace(".", "_")
-        image_output_dir = f"{args.experiment.explanation_dir}/images/{module_name}"
+        image_output_dir = f"{args.experiment.explanation_dir}/images/{module_name}/{result.record.feature}"
         os.makedirs(image_output_dir, exist_ok=True)
         output_path = f"{args.experiment.explanation_dir}/{module_name}.json"
         if os.path.exists(output_path):
@@ -95,9 +87,7 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
         else:
             output_file = []
 
-        output_file.append(
-            {f"{result.record.feature}": f"{result.explanation}", "prompt": content}
-        )
+        output_file.append({f"{result.record.feature}": f"{result.explanation}"})
 
         with open(output_path, "w") as f:
             json.dump(output_file, f, indent=4, ensure_ascii=False)
@@ -106,6 +96,7 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
         for image, activated_image in zip(images, activated_images):
             image.save(f"{image_output_dir}/top_{idx}.jpg")
             activated_image.save(f"{image_output_dir}/top{idx}_activated.jpg")
+            idx += 1
 
         return result
 
