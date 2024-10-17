@@ -188,6 +188,7 @@ cython_debug/
 
 # Custom
 scripts/i18n
+scripts/*
 playground
 model*.json
 *.jpg
