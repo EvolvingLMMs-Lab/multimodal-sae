@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import List, TypeVar, Union
 
 import blobfile as bf
+import numpy as np
 import orjson
 from PIL import Image
 from torch.nn.functional import interpolate
@@ -53,30 +54,38 @@ def prepare_image_examples(tokens, activations, images, processor: AutoProcessor
     # TODO: Currently only tries to get the activations for the base image feat
     # probably later try on how to get activations on unpadded image features
     # Possibly have to wait till the new transformers release
-    num_img_tokens = 576
+    base_img_tokens = 576
     patch_size = 24
 
     # Unsqueeze into 4D to match interpolate
     base_image_activations = [
-        acts[:num_img_tokens].view(patch_size, patch_size).unsqueeze(0).unsqueeze(0)
-        for acts in activations
+        acts[:base_img_tokens].view(patch_size, patch_size) for acts in activations
     ]
-    # Squeeze back to 3D to be able to convert into RGB
-    upsampled_activations = [
-        interpolate(acts, size=(336, 336), mode="bilinear").squeeze(0)
-        for acts in base_image_activations
+
+    # Get the mask for the image features
+    base_image_mask = [
+        (acts < 1e-5).int().numpy() * 224 for acts in base_image_activations
     ]
-    upsampled_activations_image = [
-        to_pil_image(acts).convert("RGB") for acts in upsampled_activations
+
+    base_image_mask = [
+        Image.fromarray(mask_np.astype(np.uint8), mode="L")
+        for mask_np in base_image_mask
     ]
+
+    upsampled_image_mask = [
+        mask.resize((336, 336), Image.BILINEAR) for mask in base_image_mask
+    ]
+
+    background = Image.new("L", (336, 336), 0).convert("RGB")
+
     # Somehow as I looked closer into the llava-hf preprocessing code,
     # I found out that they don't use the padded image as the base image feat
     # but use the simple resized image. This is different from original llava but
     # we align to llava-hf for now as we use llava-hf
     resized_image = [im.resize((336, 336)) for im in images]
     activation_images = [
-        Image.blend(im.convert("RGB"), upsampled_acts, 0.65)
-        for im, upsampled_acts in zip(resized_image, upsampled_activations_image)
+        Image.composite(background, im, upsampled_mask).convert("RGB")
+        for im, upsampled_mask in zip(resized_image, upsampled_image_mask)
     ]
 
     return [
