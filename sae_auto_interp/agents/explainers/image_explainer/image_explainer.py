@@ -27,7 +27,7 @@ class ImageExplainer(Explainer):
         self.generation_kwargs = generation_kwargs
 
     async def __call__(self, record: FeatureRecord):
-        images = [train.image for train in record.train]
+        images = [train.activation_image for train in record.train]
         encoded_images = [self.encode_images(image) for image in images]
         messages = build_prompt(encoded_images)
         response = await self.client.generate(messages, **self.generation_kwargs)
