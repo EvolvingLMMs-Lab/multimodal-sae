@@ -1,10 +1,12 @@
 import json
 import os
-from typing import Dict
+from typing import Dict, List
 
 import torch
+from PIL import Image
 from torchtyping import TensorType
 from transformers import AutoTokenizer
+from transformers.image_processing_utils import select_best_resolution
 
 from .features import FeatureRecord
 from .sae import Sae
@@ -60,6 +62,7 @@ def load_explanation(explanation_dir: str):
 def load_saes(
     sae_path: str, filters: Dict[str, TensorType["indices"]] = None, device="cuda:0"
 ) -> Dict[str, Sae]:
+    submodule_dict = {}
     if os.path.exists(sae_path):
         if filters is not None:
             for module_name, indices in filters.items():
@@ -78,6 +81,55 @@ def load_saes(
             submodule_dict = Sae.load_many(sae_path, local=False, device=device)
 
     return submodule_dict
+
+
+def get_anyres_padded_images(
+    image: Image.Image,
+    image_grid_pinpoints: List[List[int]],
+):
+    height_best_resolution, width_best_resolution = select_best_resolution(
+        [image.size[0], image.size[1]], image_grid_pinpoints
+    )
+
+    return image.resize((height_best_resolution, width_best_resolution))
+
+
+def get_anyres_unpadded_size(
+    orig_height: int,
+    orig_width: int,
+    height: int,
+    width: int,
+    image_grid_pinpoints: List[List[int]],
+    patch_size: int,
+):
+    height_best_resolution, width_best_resolution = select_best_resolution(
+        [orig_height, orig_width], image_grid_pinpoints
+    )
+
+    scale_height, scale_width = (
+        height_best_resolution // height,
+        width_best_resolution // width,
+    )
+
+    patches_height = height // patch_size
+    patches_width = width // patch_size
+    current_height = patches_height * scale_height
+    current_width = patches_width * scale_width
+
+    original_aspect_ratio = width / height
+    current_aspect_ratio = current_width / current_height
+    if original_aspect_ratio > current_aspect_ratio:
+        new_height = (height * current_width) // width
+        padding = (current_height - new_height) // 2
+        current_height -= padding * 2
+    else:
+        new_width = (width * current_height) // height
+        padding = (current_width - new_width) // 2
+        current_width -= padding * 2
+
+    # This will be the size of the unpadded anyres image tokens
+    # There will be image newline at the end of each line
+    return current_height, current_width
 
 
 def display(
