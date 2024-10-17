@@ -44,4 +44,3 @@ include = ["sae_auto_interp*"]
 [tool.isort]
 profile = "black"
 src_paths = ["sae_auto_interp", "test"]
-
