@@ -69,7 +69,11 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
     ### Load client ###
     logger.info("Setup server")
 
-    client = SRT(model="lmms-lab/llava-onevision-qwen2-72b-ov", tp=8)
+    client = SRT(
+        model="lmms-lab/llava-onevision-qwen2-72b-ov",
+        tp=8,
+        base_url="http://localhost:12345",
+    )
 
     ### Build Explainer pipe ###
 
@@ -117,7 +121,7 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
         explainer_pipe,
     )
 
-    asyncio.run(pipeline.run(max_processes=cpu_count() // 2))
+    asyncio.run(pipeline.run(max_processes=cpu_count() // 4))
     client.clean()
 
 
