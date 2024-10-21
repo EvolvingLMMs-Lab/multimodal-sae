@@ -13,7 +13,7 @@ from sae_auto_interp.config import CacheConfig
 from sae_auto_interp.features import FeatureCache
 from sae_auto_interp.sae import Sae
 from sae_auto_interp.sae.data import chunk_and_tokenize
-from sae_auto_interp.utils import load_filter, load_saes
+from sae_auto_interp.utils import load_filter, load_saes, maybe_load_llava_model
 
 
 def main(cfg: CacheConfig):
@@ -30,29 +30,14 @@ def main(cfg: CacheConfig):
         if rank == 0:
             print(f"Using DDP across {dist.get_world_size()} GPUs.")
 
-    if cfg.load_in_8bit:
-        dtype = torch.float16
-    elif torch.cuda.is_bf16_supported():
+    if torch.cuda.is_bf16_supported():
         dtype = torch.bfloat16
     else:
         dtype = "auto"
 
     logger.info(f"Load Model : {cfg.model}")
 
-    if "llava" in cfg.model:
-        model = LlavaNextForConditionalGeneration.from_pretrained(
-            cfg.model,
-            device_map={"": f"cuda:{rank}"},
-            torch_dtype=dtype,
-            token=cfg.hf_token,
-        )
-    else:
-        model = AutoModel.from_pretrained(
-            cfg.model,
-            device_map={"": f"cuda:{rank}"},
-            torch_dtype=dtype,
-            token=cfg.hf_token,
-        )
+    model, processor = maybe_load_llava_model(cfg.model, rank, dtype, cfg.hf_token)
 
     tokenizer = AutoTokenizer.from_pretrained(cfg.model, token=cfg.hf_token)
 
