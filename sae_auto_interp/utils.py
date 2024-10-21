@@ -1,11 +1,16 @@
 import json
 import os
-from typing import Dict, List
+from typing import Dict, List, Tuple, Union
 
 import torch
 from PIL import Image
 from torchtyping import TensorType
-from transformers import AutoTokenizer
+from transformers import (
+    AutoModel,
+    AutoTokenizer,
+    LlavaNextForConditionalGeneration,
+    LlavaNextProcessor,
+)
 from transformers.image_processing_utils import select_best_resolution
 
 from .features import FeatureRecord
@@ -57,6 +62,29 @@ def load_explanation(explanation_dir: str):
                 if key_name != "prompt":
                     explanations[key_name] = content
     return explanations
+
+
+def maybe_load_llava_model(
+    model_name, rank, dtype, hf_token
+) -> Tuple[Union[AutoModel, LlavaNextForConditionalGeneration], LlavaNextProcessor]:
+    if "llava" in model_name:
+        model = LlavaNextForConditionalGeneration.from_pretrained(
+            model_name,
+            device_map={"": f"cuda:{rank}"},
+            torch_dtype=dtype,
+            token=hf_token,
+        )
+        processor = LlavaNextProcessor.from_pretrained(model_name)
+    else:
+        model = AutoModel.from_pretrained(
+            model_name,
+            device_map={"": f"cuda:{rank}"},
+            torch_dtype=dtype,
+            token=hf_token,
+        )
+        processor = None
+
+    return model, processor
 
 
 def load_saes(
