@@ -79,15 +79,19 @@ class Attribution:
             self.image.append(image)
             self.image_sizes.append([image.size[0], image.size[1]])
 
-        self.pixel_values = self.image_processor(
-            [im for im in self.image],
-            do_pad=True,
-            return_tensors="pt",
-        )["pixel_values"]
+        self.pixel_values = (
+            self.image_processor(
+                [im for im in self.image],
+                do_pad=True,
+                return_tensors="pt",
+            )["pixel_values"]
+            .to(model.device)
+            .to(model.dtype)
+        )
 
         self.prompt_ids = tokenizer(self.prompt, return_tensors="pt")["input_ids"].to(
             model.device
-        )
+        )[:, 1:]
         self.answer_ids = []
         for answer in self.answer:
             self.answer_ids.append(
@@ -97,11 +101,12 @@ class Attribution:
                 ]
             )
         self.answer_ids = torch.tensor(self.answer_ids).to(model.device)
+        self.attention_mask = self.prompt_ids.ne(tokenizer.pad_token_id)
 
         # If it is pure llama model, then have no language model
         # but model.model instead
         self.name_to_module = {
-            name: getattr(model, "language_model", model.model).get_submodule(name)
+            name: model.language_model.get_submodule(name)
             for name in self.sae_dict.keys()
         }
         self.module_to_name = {v: k for k, v in self.name_to_module.items()}
@@ -133,6 +138,7 @@ class Attribution:
                     "input_ids": self.prompt_ids,
                     "pixel_values": self.pixel_values,
                     "image_sizes": self.image_sizes,
+                    "attention_mask": self.attention_mask,
                 },
                 self.sae_dict,
                 self.module_to_name,
@@ -144,6 +150,7 @@ class Attribution:
                     "input_ids": self.prompt_ids,
                     "pixel_values": self.pixel_values,
                     "image_sizes": self.image_sizes,
+                    "attention_mask": self.attention_mask,
                 },
                 self.sae_dict,
                 self.module_to_name,

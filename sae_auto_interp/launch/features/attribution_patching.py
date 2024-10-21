@@ -41,7 +41,7 @@ def main(cfg: AttributionConfig):
     )
     if ddp:
         saes = [v for v in attribution.sae_dict.values()]
-        num_latents = getattr(saes[0].cfg, "num_latens", None)
+        num_latents = getattr(saes[0].cfg, "num_latents", None)
         k = (
             num_latents
             if num_latents is not None
