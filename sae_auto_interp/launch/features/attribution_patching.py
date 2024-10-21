@@ -9,6 +9,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from sae_auto_interp.config import AttributionConfig
 from sae_auto_interp.features import Attribution
+from sae_auto_interp.utils import maybe_load_llava_model
 
 
 def main(cfg: AttributionConfig):
@@ -27,10 +28,8 @@ def main(cfg: AttributionConfig):
     logger.info(f"Using model {model_id}")
     logger.info(f"Using sae {cfg.sae_path}")
     logger.info(f"Selecting sae layer {cfg.selected_sae}")
-    model = AutoModelForCausalLM.from_pretrained(
-        model_id,
-        torch_dtype=torch.float16,
-        device_map=f"cuda:{rank}",
+    model, processor = maybe_load_llava_model(
+        model_id, rank, "torch.float16", hf_token=None
     )
     attribution = Attribution(
         model,
@@ -38,6 +37,7 @@ def main(cfg: AttributionConfig):
         sae_path=cfg.sae_path,
         data_path=cfg.data_path,
         selected_sae=cfg.selected_sae,
+        image_processor=processor.image_processor,
     )
     if ddp:
         saes = [v for v in attribution.sae_dict.values()]

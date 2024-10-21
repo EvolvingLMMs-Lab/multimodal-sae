@@ -6,9 +6,10 @@ from typing import List, Union
 
 import torch
 import torch.distributed as dist
+from PIL import Image
 from torchtyping import TensorType
 from tqdm import tqdm
-from transformers import PreTrainedModel, PreTrainedTokenizer
+from transformers import LlavaNextImageProcessor, PreTrainedModel, PreTrainedTokenizer
 
 from sae_auto_interp.sae import Sae
 
@@ -29,8 +30,10 @@ class Attribution:
         sae_path: str,
         data_path: str,
         selected_sae: str = None,
+        image_processor: LlavaNextImageProcessor = None,
     ) -> None:
         self.model = model
+        self.image_processor = image_processor
 
         if selected_sae is not None:
             if not os.path.exists(sae_path):
@@ -67,9 +70,20 @@ class Attribution:
         # the first one should be the correct token
         # and the second one is the baseline token
         self.answer = []
+        self.image = []
+        self.image_sizes = []
         for item in self.data:
             self.prompt.append(item["prompt"])
             self.answer.append([str(item["answer"]), str(item["baseline"])])
+            image = Image.open(item["image"])
+            self.image.append(image)
+            self.image_sizes.append([image.size[0], image.size[1]])
+
+        self.pixel_values = self.image_processor(
+            [im for im in self.image],
+            do_pad=True,
+            return_tensors="pt",
+        )["pixel_values"]
 
         self.prompt_ids = tokenizer(self.prompt, return_tensors="pt")["input_ids"].to(
             model.device
@@ -115,14 +129,22 @@ class Attribution:
             # Get the logits
             clean_logits, clean_cache = get_model_forward_cache_with_sae(
                 self.model,
-                {"input_ids": self.prompt_ids},
+                {
+                    "input_ids": self.prompt_ids,
+                    "pixel_values": self.pixel_values,
+                    "image_sizes": self.image_sizes,
+                },
                 self.sae_dict,
                 self.module_to_name,
             )
 
             corrupted_logits, corrupted_cache = get_model_forward_cache_with_sae(
                 self.model,
-                {"input_ids": self.prompt_ids},
+                {
+                    "input_ids": self.prompt_ids,
+                    "pixel_values": self.pixel_values,
+                    "image_sizes": self.image_sizes,
+                },
                 self.sae_dict,
                 self.module_to_name,
                 off_features=idx,
