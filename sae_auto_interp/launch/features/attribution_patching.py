@@ -29,7 +29,7 @@ def main(cfg: AttributionConfig):
     logger.info(f"Using sae {cfg.sae_path}")
     logger.info(f"Selecting sae layer {cfg.selected_sae}")
     model, processor = maybe_load_llava_model(
-        model_id, rank, "torch.float16", hf_token=None
+        model_id, rank, torch.float16, hf_token=None
     )
     attribution = Attribution(
         model,
