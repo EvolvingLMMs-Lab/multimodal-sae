@@ -160,6 +160,18 @@ def get_anyres_unpadded_size(
     return current_height, current_width
 
 
+def get_llava_image_pos(input_ids: List[int], image_tok: int) -> Tuple[int, int]:
+    """
+    This is a simple split operation to find only image tokens from
+    input ids. Only works for single image tok now :D
+    """
+    # Find the place of image token
+    image_pos = input_ids.index(image_tok)
+    prev = image_pos
+    after = -(len(input_ids) - image_pos) + 1
+    return prev, after
+
+
 def display(
     record: FeatureRecord, tokenizer: AutoTokenizer, threshold: float = 0.0, n: int = 10
 ) -> str:
