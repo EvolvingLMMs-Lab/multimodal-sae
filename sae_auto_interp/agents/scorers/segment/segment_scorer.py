@@ -1,5 +1,7 @@
+import os
 import random
 from dataclasses import dataclass
+from glob import glob
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import cv2
@@ -9,6 +11,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 import requests
 import torch
+import torch.distributed as dist
+from loguru import logger
 from PIL import Image
 from transformers import AutoModelForMaskGeneration, AutoProcessor, pipeline
 
@@ -26,21 +30,57 @@ class SegmentScorer:
         device: str = "cuda",
         threshold: float = 0.3,
     ) -> None:
-        self.detector = detector
-        self.segmentor = segmentor
+        self.detector_id = detector
+        self.segmentor_id = segmentor
         self.device = device
         self.threshold = threshold
+        logger.info(f"Loading object detector : {detector}")
         self.object_detector = pipeline(
             model=detector, task="zero-shot-object-detection", device=device
         )
+        logger.info(f"Loading object detector : {segmentor}")
         self.segmentator = AutoModelForMaskGeneration.from_pretrained(segmentor).to(
             device
         )
         self.processor = AutoProcessor.from_pretrained(segmentor)
         self.explanation_dir = explanation_dir
         self.explanation = load_explanation(explanation_dir)
+        local_rank = os.environ.get("LOCAL_RANK")
+        self.ddp = local_rank is not None
+        self.rank = int(local_rank) if local_rank is not None else 0
+        self.features = [k for k in self.explanation.keys()]
+        if self.ddp:
+            self.feature_idx = torch.arange(len(self.features)).chunk(
+                dist.get_world_size()
+            )
+        else:
+            self.feature_idx = torch.arange(len(self.features))
+        self.features = [
+            self.features[idx]
+            for idx in range(len(self.features))
+            if idx in self.feature_idx
+        ]
 
-    def __call__(self, *args: Any, **kwds: Any) -> Any:
+    def __call__(self) -> Any:
+        for feature in self.features:
+            model_layer = feature.split("_")[0].replace(".", "_")
+            mask_image_folder = os.path.join(
+                self.explanation_dir, "images", model_layer, feature, "masks"
+            )
+            image_folder = os.path.join(
+                self.explanation_dir, "images", model_layer, feature, "images"
+            )
+            image_files = glob(os.path.join(image_folder, "*.jpg"))
+            import pdb
+
+            pdb.set_trace()
+            for idx, image_file in enumerate(image_files):
+                image = Image.open(image_file)
+                mask = Image.open(os.path.join(mask_image_folder, "0_mask.jpg"))
+                image_np, detections = self.grounded_segmentation(
+                    image, [self.explanation[feature]]
+                )
+                mask_np = np.array(mask)
         pass
 
     def grounded_segmentation(
