@@ -91,7 +91,7 @@ class SRT(Client):
         image_path: str,
         raw: bool = False,
         max_retries: int = 2,
-        temperature: float = 0.2,
+        temperature: float = 0,
         max_new_tokens: int = 4096,
         **kwargs,
     ) -> str:
