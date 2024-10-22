@@ -1,9 +1,10 @@
 from dataclasses import dataclass
-from typing import List, TypeVar, Union
+from typing import List, Tuple, TypeVar, Union
 
 import blobfile as bf
 import numpy as np
 import orjson
+import torch
 from PIL import Image
 from torch.nn.functional import interpolate
 from torchtyping import TensorType
@@ -31,6 +32,7 @@ class Example:
 class ImageExample(Example):
     image: Image
     activation_image: Image
+    mask: Image
 
 
 ExampleType = TypeVar("ExampleType", bound=Union[Example, ImageExample])
@@ -57,23 +59,12 @@ def prepare_image_examples(tokens, activations, images, processor: AutoProcessor
     base_img_tokens = 576
     patch_size = 24
 
-    # Unsqueeze into 4D to match interpolate
     base_image_activations = [
         acts[:base_img_tokens].view(patch_size, patch_size) for acts in activations
     ]
 
-    # Get the mask for the image features
-    base_image_mask = [
-        (acts < 1e-5).int().numpy() * 224 for acts in base_image_activations
-    ]
-
-    base_image_mask = [
-        Image.fromarray(mask_np.astype(np.uint8), mode="L")
-        for mask_np in base_image_mask
-    ]
-
     upsampled_image_mask = [
-        mask.resize((336, 336), Image.BILINEAR) for mask in base_image_mask
+        upsample_mask(acts, (336, 336)) for acts in base_image_activations
     ]
 
     background = Image.new("L", (336, 336), 0).convert("RGB")
@@ -94,9 +85,10 @@ def prepare_image_examples(tokens, activations, images, processor: AutoProcessor
             activations=acts,
             image=image,
             activation_image=activation_image,
+            mask=mask,
         )
-        for toks, acts, image, activation_image in zip(
-            tokens, activations, images, activation_images
+        for toks, acts, image, activation_image, mask in zip(
+            tokens, activations, images, activation_images, upsampled_image_mask
         )
     ]
 
@@ -136,3 +128,12 @@ class FeatureRecord:
         serializable.pop("feature")
         with bf.BlobFile(path, "wb") as f:
             f.write(orjson.dumps(serializable))
+
+
+def upsample_mask(
+    mask: torch.Tensor, image_size: Tuple[int, int], value=224, mode=Image.BILINEAR
+) -> Image.Image:
+    mask = (mask < 1e-5).int().numpy() * value
+    mask_image = Image.fromarray(mask.astype(np.uint8), mode="L")
+    upsampled_mask = mask_image.resize(image_size, mode)
+    return upsampled_mask

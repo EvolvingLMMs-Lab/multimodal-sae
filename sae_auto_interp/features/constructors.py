@@ -110,7 +110,25 @@ def pool_max_activations_windows_image(
         dense_activations, kernel_size=seq_len, stride=seq_len
     )
 
-    top_indices = torch.topk(avg_pools.flatten(), cfg.max_examples).indices.tolist()
+    # An ugly hardcode here, because there are duplicated images in llava-next data
+    # get top k + 50 indices and remove duplicate
+    top_indices = torch.topk(
+        avg_pools.flatten(), cfg.max_examples + 50
+    ).indices.tolist()
+    image_ids = tokens.select(indices=top_indices)["id"]
+    presence_image_id = set()
+    new_top_indices = []
+    for idx, image_id in enumerate(image_ids):
+        if image_id not in presence_image_id:
+            new_top_indices.append(top_indices[idx])
+            presence_image_id.add(image_id)
+    if len(new_top_indices) < cfg.max_examples:
+        new_top_indices.append(
+            [new_top_indices[0]] * (len(cfg.max_examples) - len(new_top_indices))
+        )
+    elif len(new_top_indices) > cfg.max_examples:
+        new_top_indices = new_top_indices[: cfg.max_examples]
+    top_indices = new_top_indices
 
     # will construct fake tokens eventually
     top_images = tokens.select(indices=top_indices)["image"]

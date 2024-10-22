@@ -233,7 +233,7 @@ class FeatureDataset:
                 buffer,
                 batch_size=1,
                 shuffle=False,
-                num_workers=cpu_count() // 4,
+                num_workers=cpu_count() // 2,
                 collate_fn=collate_fn,
             )
             return [
