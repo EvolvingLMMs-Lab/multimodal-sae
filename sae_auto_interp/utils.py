@@ -47,7 +47,7 @@ def load_filter(path: str, device: str = "cuda:0"):
     return {key: torch.tensor(value, device=device) for key, value in filter.items()}
 
 
-def load_explanation(explanation_dir: str):
+def load_explanation(explanation_dir: str) -> Dict[str, str]:
     explanations = {}
     explanation_files = os.listdir(explanation_dir)
     explanation_files = [
