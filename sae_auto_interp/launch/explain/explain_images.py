@@ -81,8 +81,11 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
         content, reps, result = result
         record = result.record
         images = [train.image for train in record.train]
+        masks = [train.mask for train in record.train]
         activated_images = [train.activation_image for train in record.train]
+        # model.layers.24 -> model_layers_24
         module_name = result.record.feature.module_name.replace(".", "_")
+        # explain/images/model_layers_24/feature_x
         image_output_dir = f"{args.experiment.explanation_dir}/images/{module_name}/{result.record.feature}"
         os.makedirs(image_output_dir, exist_ok=True)
         output_path = f"{args.experiment.explanation_dir}/{module_name}.json"
@@ -97,9 +100,15 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
             json.dump(output_file, f, indent=4, ensure_ascii=False)
 
         idx = 0
-        for image, activated_image in zip(images, activated_images):
-            image.save(f"{image_output_dir}/top_{idx}.jpg")
-            activated_image.save(f"{image_output_dir}/top{idx}_activated.jpg")
+        os.makedirs(f"{image_output_dir}/images", exist_ok=True)
+        os.makedirs(f"{image_output_dir}/activated_images", exist_ok=True)
+        os.makedirs(f"{image_output_dir}/masks", exist_ok=True)
+        for image, activated_image, mask in zip(images, activated_images, masks):
+            image.save(f"{image_output_dir}/images/top_{idx}.jpg")
+            activated_image.save(
+                f"{image_output_dir}/activated_images/top{idx}_activated.jpg"
+            )
+            mask.save(f"{image_output_dir}/masks/{idx}_mask.jpg")
             idx += 1
 
         return result
