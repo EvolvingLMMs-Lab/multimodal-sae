@@ -60,7 +60,7 @@ class SegmentScorer:
             for idx in range(len(self.features))
             if idx in self.feature_idx
         ]
-        print(f"Rank {self.rank}, Features : {self.features}, idx : {self.feature_idx}")
+        # print(f"Rank {self.rank}, Features : {self.features}, idx : {self.feature_idx}")
         self.filtered_explanation = {
             k: v for k, v in self.explanation.items() if k in self.features
         }
