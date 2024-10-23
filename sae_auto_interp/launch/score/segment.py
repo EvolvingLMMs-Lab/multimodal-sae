@@ -37,7 +37,10 @@ def parse_args():
         help="The path to your previous refined explanation",
     )
     parser.add_argument(
-        "--save-path", type=str, help="The path to save your refine explanations"
+        "--save-refine-path", type=str, help="The path to save your refine explanations"
+    )
+    parser.add_argument(
+        "--save-score-path", type=str, help="The path to save your score"
     )
     parser.add_argument(
         "--selected-layer",
@@ -72,12 +75,33 @@ if __name__ == "__main__":
     )
 
     if args.refine_cache is None:
+        if ddp:
+            raise RuntimeError(
+                "Please refine your description first and use the cache result to do the scoring"
+            )
         client = SRT(model="meta-llama/Llama-3.1-8B-Instruct", tp=2)
         refiner = LabelRefiner(client, scorer.filtered_explanation)
-        scorer.refine(refiner, save_path=args.save_path)
+        scorer.refine(refiner, save_path=args.save_refine_path)
         client.clean()
     else:
         with open(args.refine_cache):
             scorer.explanation = json.load(open(args.refine_cache, "r"))
     scorer.load_model()
-    scorer()
+    scores = scorer()
+
+    if ddp:
+        gathered_scores = [None for _ in range(dist.get_world_size())]
+        all_rank_scores = dist.all_gather_object(gathered_scores, scores)
+        final_scores = []
+        for score in gathered_scores:
+            final_scores.extend(score)
+    else:
+        final_scores = scores
+
+    if rank == 0:
+        save_dir = "/".join(args.save_score_path.split("/")[:-1])
+        os.makedirs(save_dir, exist_ok=True)
+        with open(args.save_score_path, "w") as f:
+            json.dump(final_scores, f, indent=4)
+    if ddp:
+        dist.barrier()

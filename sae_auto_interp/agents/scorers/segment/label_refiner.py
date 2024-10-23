@@ -60,7 +60,7 @@ class LabelRefiner:
     async def refine(
         self,
     ):
-        sem = asyncio.Semaphore(cpu_count() // 2)
+        sem = asyncio.Semaphore(cpu_count() // 8)
 
         async def _generate(feature_name, prompt):
             async with sem:
