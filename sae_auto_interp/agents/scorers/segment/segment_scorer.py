@@ -1,3 +1,4 @@
+import asyncio
 import os
 import random
 from dataclasses import dataclass
@@ -18,6 +19,7 @@ from transformers import AutoModelForMaskGeneration, AutoProcessor, pipeline
 
 from sae_auto_interp.utils import load_explanation
 
+from .label_refiner import LabelRefiner
 from .utils import DetectionResult, get_boxes, refine_masks
 
 
@@ -29,19 +31,12 @@ class SegmentScorer:
         segmentor: str = "facebook/sam-vit-huge",
         device: str = "cuda",
         threshold: float = 0.3,
+        filters: Dict[str, torch.Tensor] = None,
     ) -> None:
         self.detector_id = detector
         self.segmentor_id = segmentor
         self.device = device
         self.threshold = threshold
-        logger.info(f"Loading object detector : {detector}")
-        self.object_detector = pipeline(
-            model=detector, task="zero-shot-object-detection", device=device
-        )
-        logger.info(f"Loading object detector : {segmentor}")
-        self.segmentator = AutoModelForMaskGeneration.from_pretrained(segmentor).to(
-            device
-        )
         self.processor = AutoProcessor.from_pretrained(segmentor)
         self.explanation_dir = explanation_dir
         self.explanation = load_explanation(explanation_dir)
@@ -55,11 +50,32 @@ class SegmentScorer:
             )
         else:
             self.feature_idx = torch.arange(len(self.features))
+        self.filters = self.feature_idx if filters is None else filters
         self.features = [
             self.features[idx]
             for idx in range(len(self.features))
-            if idx in self.feature_idx
+            if idx in self.feature_idx and idx in self.filters
         ]
+        self.filtered_explanation = {
+            k: v for k, v in self.explanation.items() if k in self.features
+        }
+
+    def refine(self, refiner: LabelRefiner, save_path):
+        asyncio.run(refiner.refine())
+        self.explanation = refiner.refine_features
+        refiner.save_result(save_path)
+
+    def load_model(self):
+        logger.info(f"Loading object detector : {self.detector_id}")
+        self.object_detector = pipeline(
+            model=self.detector_id,
+            task="zero-shot-object-detection",
+            device=self.device,
+        )
+        logger.info(f"Loading object detector : {self.segmentor_id}")
+        self.segmentator = AutoModelForMaskGeneration.from_pretrained(
+            self.segmentor_id
+        ).to(self.device)
 
     def __call__(self) -> Any:
         for feature in self.features:
@@ -71,12 +87,9 @@ class SegmentScorer:
                 self.explanation_dir, "images", model_layer, feature, "images"
             )
             image_files = glob(os.path.join(image_folder, "*.jpg"))
-            import pdb
-
-            pdb.set_trace()
             for idx, image_file in enumerate(image_files):
                 image = Image.open(image_file)
-                mask = Image.open(os.path.join(mask_image_folder, "0_mask.jpg"))
+                mask = Image.open(os.path.join(mask_image_folder, f"{idx}_mask.jpg"))
                 image_np, detections = self.grounded_segmentation(
                     image, [self.explanation[feature]]
                 )
