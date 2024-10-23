@@ -25,7 +25,7 @@ class SRT(Client):
         tp: int = 8,
         # Download the model weights might take
         # very long for the first time
-        timeout: int = 180000000,
+        timeout: int = 600,
     ):
         super().__init__(model)
         self.base_url = base_url
@@ -38,12 +38,13 @@ class SRT(Client):
         self.process = popen_launch_server(
             self.model,
             self.base_url,
-            timeout=timeout,  # First time may
+            timeout=18000000,  # First time may download model
             api_key="EMPTY",
             other_args=other_args,
         )
         self.base_url += "/v1"
         self.client = AsyncOpenAI(base_url=self.base_url, api_key="EMPTY")
+        self.timeout = timeout
 
     async def generate(
         self,
@@ -67,7 +68,10 @@ class SRT(Client):
             for attempt in range(max_retries):
                 try:
                     response = await self.client.chat.completions.create(
-                        model=self.model, messages=messages, **kwargs
+                        model=self.model,
+                        messages=messages,
+                        timeout=self.timeout,
+                        **kwargs,
                     )
                     if response is None:
                         raise Exception("Response is None")
@@ -119,6 +123,7 @@ class SRT(Client):
                         messages=messages,
                         temperature=temperature,
                         max_tokens=max_new_tokens,
+                        timeout=self.timeout,
                         **kwargs,
                     )
                     if response is None:
