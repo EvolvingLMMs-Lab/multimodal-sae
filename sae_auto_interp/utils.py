@@ -111,6 +111,14 @@ def load_saes(
     return submodule_dict
 
 
+def load_single_sae(sae_path: str, module_name: str, device="cuda:0") -> Sae:
+    if os.path.exists(sae_path):
+        sae = Sae.load_from_disk(os.path.join(sae_path, module_name), device=device)
+    else:
+        sae = Sae.load_from_hub(sae_path, module_name, device=device)
+    return sae
+
+
 def get_anyres_padded_images(
     image: Image.Image,
     image_grid_pinpoints: List[List[int]],
