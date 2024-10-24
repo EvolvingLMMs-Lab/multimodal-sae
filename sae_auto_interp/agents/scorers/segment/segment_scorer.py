@@ -101,7 +101,7 @@ class SegmentScorer:
             for idx, image_file in enumerate(image_files):
                 image = Image.open(image_file)
                 mask = Image.open(os.path.join(mask_image_folder, f"{idx}_mask.jpg"))
-                image = image.resize(mask.size)
+                image = image.resize(mask.size).convert("RGB")
                 try:
                     image_np, detections = self.grounded_segmentation(
                         image, [self.explanation[feature]]
@@ -138,6 +138,7 @@ class SegmentScorer:
                     "avg_iou": (sum(iou_scores) + bad_cases) / len(iou_scores),
                     "k": len(iou_scores),
                     "activated_pct": mask_np.sum() / (mask.size[0] * mask.size[1]),
+                    "label": self.explanation[feature],
                 }
             )
             pbar.update(1)
