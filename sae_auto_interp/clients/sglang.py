@@ -50,6 +50,7 @@ class SRT(Client):
         self,
         prompt: Union[str, List[Dict]],
         raw: bool = False,
+        temperature: float = 0,
         max_retries: int = 2,
         **kwargs,
     ) -> str:
@@ -70,6 +71,7 @@ class SRT(Client):
                     response = await self.client.chat.completions.create(
                         model=self.model,
                         messages=messages,
+                        temperature=temperature,
                         timeout=self.timeout,
                         **kwargs,
                     )
