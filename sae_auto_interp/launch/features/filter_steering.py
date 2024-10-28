@@ -54,7 +54,7 @@ ANSWER : 3
 
 Now please help me label this and strictly follow the [GUIDELINES]
 
-Original : \nOnce upon a time, in a land far, far away, there lived two best friends named Alice and Bob. They had been inseparable since they were children, and they shared everything with each other. One day, while they were out exploring the woods, they stumbled upon a hidden path they had never seen before. Curious, they decided to follow it and see where it led.\n\nAs they walked, the path grew narrower and narrower until they found themselves in a clearing surrounded by towering trees. In the center of the clearing stood an old, gnarled tree, and on its trunk was a sign that read \"Welcome to the Land of Dreams.\"\n\nAlice and Bob looked at each other in amazement and wondered what the Land of Dreams was. They decided to explore further and soon found themselves in a beautiful meadow filled with wildflowers. They walked through the meadow, taking in the sights and sounds of nature, until they came to a small cottage.\n\nInside the cottage, they found a cozy room with a fireplace and a table covered in a white tablecloth. On the table was a plate of food and a pitcher of lemonade. Alice and Bob sat down and enjoyed their meal, feeling grateful for the unexpected adventure they had stumbled upon.\n\nAfter they finished eating, they decided to explore the rest of the Land of Dreams. They walked through fields of golden wheat, climbed mountains, and swam in crystal-clear lakes. They met all sorts of creatures, from friendly unicorns to mischievous fairies, and they had the time of their lives.\n\nAs the sun began to set, Alice and Bob made their way back to the clearing where they had first entered the Land of Dreams. They sat down on the grass and watched the stars come out one by one. They talked about all the amazing things they had seen and the memories they had made.\n\nAs they sat there, they realized that the Land of Dreams was not just a place, but a state of mind. It was a place where anything was possible, where imagination ran wild, and where friendship was the greatest treasure of all.\n\nAlice and Bob smiled at each other and knew that they would always cherish the memories of their adventure in the Land of Dreams. And as they drifted off to sleep, they dreamed of all the amazing things they would do together in the future.
+Original : {original_resps}
 
 Clamped : {clamped_resps}
 
@@ -95,14 +95,15 @@ def main():
             async with sem:
                 return key, await client.generate(prompt)
 
-        tasks = [
-            asyncio.create_task(
-                _process(
-                    PROMPT.format(clamped_resps=steering_result[k]["clamped_resps"]), k
-                )
+        tasks = []
+        for k in steering_result.keys():
+            clamped_resps = steering_result[k]["clamped_resps"]
+            origin_resps = steering_result[k]["original_resps"]
+            prompt = PROMPT.format(
+                clamped_resps=clamped_resps, origin_resps=origin_resps
             )
-            for k in steering_result.keys()
-        ]
+            tasks.append(asyncio.create_task(_process(prompt, k)))
+
         pbar = tqdm(total=len(tasks), desc="Collected")
         for completed_task in asyncio.as_completed(tasks):
             feature_name, result = await completed_task
