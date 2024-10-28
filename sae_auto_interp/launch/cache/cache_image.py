@@ -22,8 +22,6 @@ from sae_auto_interp.utils import load_filter, load_saes, maybe_load_llava_model
 
 
 def main(cfg: CacheConfig):
-    # Probably in the future we should do multi-processing
-    # But now I think it's still only one process
     local_rank = os.environ.get("LOCAL_RANK")
     ddp = local_rank is not None
     rank = int(local_rank) if ddp else 0
