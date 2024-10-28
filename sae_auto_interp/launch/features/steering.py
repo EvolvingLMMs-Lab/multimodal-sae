@@ -98,8 +98,12 @@ def main():
 
         if rank == 0:
             os.makedirs(args.save_dir, exist_ok=True)
-            with open(os.path.join(args.save_dir, f"{module_name}.json"), "w") as f:
-                json.dump(result_dict, f, indent=4)
+            with open(
+                os.path.join(args.save_dir, f"{module_name}.json"),
+                "w",
+                encoding="utf-8",
+            ) as f:
+                json.dump(result_dict, f, indent=4, ensure_ascii=False)
 
         if ddp:
             dist.barrier()
