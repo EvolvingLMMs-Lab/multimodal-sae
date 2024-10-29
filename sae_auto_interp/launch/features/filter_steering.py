@@ -48,7 +48,7 @@ def main():
             clamped_resps = steering_result[k]["clamped_resps"]
             origin_resps = steering_result[k]["original_resps"]
             prompt = STEERING_FILTER_PROMPT.format(
-                clamped_resps=clamped_resps, origin_resps=origin_resps
+                original_resps=origin_resps, clamped_resps=clamped_resps
             )
             tasks.append(asyncio.create_task(_process(prompt, k)))
 
