@@ -39,8 +39,8 @@ def parse_args():
     )
     parser.add_argument(
         "--image-only",
-        action="store_false",
-        default=True,
+        action="store_true",
+        default=False,
         help="only pick features on image activations or not",
     )
     parser.add_argument(
