@@ -48,6 +48,11 @@ def parse_argument():
         type=int,
         help="The idx of the feature that you want to clamp",
     )
+    parser.add_argument(
+        "--pure-text",
+        action="store_true",
+        help="Whether to use pure text as input, no chat template",
+    )
     return parser.parse_args()
 
 
@@ -91,20 +96,25 @@ if __name__ == "__main__":
     text: str = args.text
     hooked_module = model.language_model.get_submodule(args.module_name)
 
-    conversation = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": text},
-            ],
-        },
-    ]
-    if image is not None:
-        conversation[0]["content"].append(
-            {"type": "image"},
-        )
+    if not args.pure_text:
+        conversation = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": text},
+                ],
+            },
+        ]
+        if image is not None:
+            conversation[0]["content"].append(
+                {"type": "image"},
+            )
 
-    prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
+        prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
+    if args.pure_text:
+        prompt = text
+        if image is not None:
+            prompt = "<image>\n" + prompt
 
     inputs = processor(images=image, text=prompt, return_tensors="pt").to(model.device)
     # image_tokens = tokenizer.convert_tokens_to_ids("<image>")
