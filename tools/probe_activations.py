@@ -46,6 +46,13 @@ def parse_argument():
         default=10,
     )
     parser.add_argument(
+        "--interval",
+        type=str,
+        help="The interval of top k features. Split the interval in two parts,"
+        "e.g. 1-10,11-20, will probe features from top 1 to 10 and 11 to 20",
+        default=None,
+    )
+    parser.add_argument(
         "--save-to",
         "-s",
         type=str,
@@ -68,6 +75,10 @@ if __name__ == "__main__":
     image = Image.open(args.image_path) if args.image_path is not None else None
     text: str = args.text if args.text is not None else None
     hooked_module = model.language_model.get_submodule(args.module_name)
+    if args.interval is not None:
+        interval = [int(i) for i in args.interval.split("-")]
+    else:
+        interval = [0, args.top_k]
 
     assert image is not None or text is not None, "Image and text can no both be None"
 
@@ -110,8 +121,8 @@ if __name__ == "__main__":
 
         # avg and get the top-k activated features on the whole image
         topk_indices = (
-            latents.squeeze(0).mean(dim=0).topk(k=args.top_k).indices.detach().cpu()
-        )
+            latents.squeeze(0).mean(dim=0).topk(k=interval[1]).indices.detach().cpu()
+        )[interval[0] :]
         topk_acts = latents[:, :, topk_indices].squeeze(0).permute(1, 0).detach().cpu()
 
     handles = [hooked_module.register_forward_hook(hook)]
@@ -130,35 +141,35 @@ if __name__ == "__main__":
     os.makedirs(args.save_to, exist_ok=True)
     filters = {}
     filters[args.module_name] = topk_indices.tolist()
+    if image is not None:
+        base_img_tokens = 576
+        patch_size = 24
 
-    base_img_tokens = 576
-    patch_size = 24
+        base_image_activations = [
+            acts[:base_img_tokens].view(patch_size, patch_size) for acts in topk_acts
+        ]
 
-    base_image_activations = [
-        acts[:base_img_tokens].view(patch_size, patch_size) for acts in topk_acts
-    ]
+        upsampled_image_mask = [
+            upsample_mask(acts, (336, 336)) for acts in base_image_activations
+        ]
 
-    upsampled_image_mask = [
-        upsample_mask(acts, (336, 336)) for acts in base_image_activations
-    ]
+        background = Image.new("L", (336, 336), 0).convert("RGB")
 
-    background = Image.new("L", (336, 336), 0).convert("RGB")
+        # Somehow as I looked closer into the llava-hf preprocessing code,
+        # I found out that they don't use the padded image as the base image feat
+        # but use the simple resized image. This is different from original llava but
+        # we align to llava-hf for now as we use llava-hf
+        resized_image = [image.resize((336, 336))] * len(upsampled_image_mask)
+        activation_images = [
+            Image.composite(background, im, upsampled_mask).convert("RGB")
+            for im, upsampled_mask in zip(resized_image, upsampled_image_mask)
+        ]
 
-    # Somehow as I looked closer into the llava-hf preprocessing code,
-    # I found out that they don't use the padded image as the base image feat
-    # but use the simple resized image. This is different from original llava but
-    # we align to llava-hf for now as we use llava-hf
-    resized_image = [image.resize((336, 336))] * len(upsampled_image_mask)
-    activation_images = [
-        Image.composite(background, im, upsampled_mask).convert("RGB")
-        for im, upsampled_mask in zip(resized_image, upsampled_image_mask)
-    ]
+        image_dir = os.path.join(args.save_to, "images")
+        os.makedirs(image_dir, exist_ok=True)
+        for idx, im in zip(topk_indices, activation_images):
+            im.save(os.path.join(image_dir, f"feat_{idx}.png"))
 
     filters_path = os.path.join(args.save_to, "filters.json")
     with open(filters_path, "w") as f:
         json.dump(filters, f)
-
-    image_dir = os.path.join(args.save_to, "images")
-    os.makedirs(image_dir, exist_ok=True)
-    for idx, im in enumerate(activation_images):
-        im.save(os.path.join(image_dir, f"top_{idx}.png"))
