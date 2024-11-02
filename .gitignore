@@ -192,4 +192,5 @@ scripts/*
 playground
 model*.json
 *.jpg
+*.png
 *.json
