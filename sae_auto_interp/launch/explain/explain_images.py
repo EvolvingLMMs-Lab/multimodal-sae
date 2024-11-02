@@ -104,7 +104,7 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
         os.makedirs(f"{image_output_dir}/activated_images", exist_ok=True)
         os.makedirs(f"{image_output_dir}/masks", exist_ok=True)
         for image, activated_image, mask in zip(images, activated_images, masks):
-            image.save(f"{image_output_dir}/images/top_{idx}.jpg")
+            image.save(f"{image_output_dir}/images/top_{idx}.png")
             activated_image.save(
                 f"{image_output_dir}/activated_images/top{idx}_activated.jpg"
             )
