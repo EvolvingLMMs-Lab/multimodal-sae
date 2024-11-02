@@ -94,6 +94,8 @@ def pool_max_activations_windows_image(
 ):
     activations = buffer_output.activations
     locations = buffer_output.locations
+    # New OV have image tokens, if not then old clip ones
+    base_img_tokens = getattr(processor, "num_image_tokens", 576)
 
     # Num of Images
     batch_size = len(tokens)
@@ -106,8 +108,11 @@ def pool_max_activations_windows_image(
     )
     dense_activations = sparse_activations.to_dense()
 
+    # Only pool the base img tokens
     avg_pools = torch.nn.functional.avg_pool1d(
-        dense_activations, kernel_size=seq_len, stride=seq_len
+        dense_activations[:, :base_img_tokens],
+        kernel_size=base_img_tokens,
+        stride=base_img_tokens,
     )
 
     # An ugly hardcode here, because there are duplicated images in llava-next data
@@ -115,20 +120,23 @@ def pool_max_activations_windows_image(
     top_indices = torch.topk(
         avg_pools.flatten(), cfg.max_examples + 50
     ).indices.tolist()
-    image_ids = tokens.select(indices=top_indices)["id"]
-    presence_image_id = set()
-    new_top_indices = []
-    for idx, image_id in enumerate(image_ids):
-        if image_id not in presence_image_id:
-            new_top_indices.append(top_indices[idx])
-            presence_image_id.add(image_id)
-    if len(new_top_indices) < cfg.max_examples:
-        new_top_indices.append(
-            [new_top_indices[0]] * (len(cfg.max_examples) - len(new_top_indices))
-        )
-    elif len(new_top_indices) > cfg.max_examples:
-        new_top_indices = new_top_indices[: cfg.max_examples]
-    top_indices = new_top_indices
+    if "id" in tokens.features:
+        image_ids = tokens.select(indices=top_indices)["id"]
+        presence_image_id = set()
+        new_top_indices = []
+        for idx, image_id in enumerate(image_ids):
+            if image_id not in presence_image_id:
+                new_top_indices.append(top_indices[idx])
+                presence_image_id.add(image_id)
+        if len(new_top_indices) < cfg.max_examples:
+            new_top_indices.append(
+                [new_top_indices[0]] * (len(cfg.max_examples) - len(new_top_indices))
+            )
+        elif len(new_top_indices) > cfg.max_examples:
+            new_top_indices = new_top_indices[: cfg.max_examples]
+        top_indices = new_top_indices
+    else:
+        top_indices = top_indices[: cfg.max_examples]
 
     # will construct fake tokens eventually
     top_images = tokens.select(indices=top_indices)["image"]
@@ -138,6 +146,39 @@ def pool_max_activations_windows_image(
         fake_tokens[top_indices], dense_activations[top_indices], top_images, processor
     )
     # record.examples = prepare_image_examples(fake_tokens[:3], dense_activations[:3], top_images)
+
+
+def random_activations_image(
+    record: FeatureRecord,
+    buffer_output: BufferOutput,
+    tokens: Dataset,
+    cfg: FeatureConfig,
+    processor: AutoProcessor,
+):
+    activations = buffer_output.activations
+    locations = buffer_output.locations
+
+    # Num of Images
+    batch_size = len(tokens)
+    # Create a fake seq len here,
+    # even llava-ov have less than 8000 image tokens so this should be enough for now
+    seq_len = 8000
+    fake_tokens = torch.zeros(batch_size, seq_len)
+    sparse_activations = torch.sparse_coo_tensor(
+        locations.t(), activations, (batch_size, seq_len)
+    )
+    dense_activations = sparse_activations.to_dense()
+
+    # Random sample max_examples from batch_size
+    top_indices = torch.randint(0, batch_size, (cfg.max_examples,))
+
+    # will construct fake tokens eventually
+    top_images = tokens.select(indices=top_indices)["image"]
+    # top_images = tokens.select(indices=[0, 1, 2])["image"]
+
+    record.examples = prepare_image_examples(
+        fake_tokens[top_indices], dense_activations[top_indices], top_images, processor
+    )
 
 
 def random_activation_windows(

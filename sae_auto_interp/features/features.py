@@ -50,30 +50,27 @@ def prepare_examples(tokens, activations):
 
 def prepare_image_examples(tokens, activations, images, processor: AutoProcessor):
     # TODO : This is a hacky way to get the image tokens
-    # I will change it to a better way after the new transformers release
-    # After they release the new version with llava_ov, the processor class
-    # has more utils
     # TODO: Currently only tries to get the activations for the base image feat
     # probably later try on how to get activations on unpadded image features
-    # Possibly have to wait till the new transformers release
-    base_img_tokens = 576
-    patch_size = 24
+    base_img_tokens = getattr(processor, "num_image_tokens", 576)
+    patch_size = 24 if base_img_tokens == 576 else 27
+    image_size = 336 if patch_size == 24 else 384
 
     base_image_activations = [
         acts[:base_img_tokens].view(patch_size, patch_size) for acts in activations
     ]
 
     upsampled_image_mask = [
-        upsample_mask(acts, (336, 336)) for acts in base_image_activations
+        upsample_mask(acts, (image_size, image_size)) for acts in base_image_activations
     ]
 
-    background = Image.new("L", (336, 336), 0).convert("RGB")
+    background = Image.new("L", (image_size, image_size), 0).convert("RGB")
 
     # Somehow as I looked closer into the llava-hf preprocessing code,
     # I found out that they don't use the padded image as the base image feat
     # but use the simple resized image. This is different from original llava but
     # we align to llava-hf for now as we use llava-hf
-    resized_image = [im.resize((336, 336)) for im in images]
+    resized_image = [im.resize((image_size, image_size)) for im in images]
     activation_images = [
         Image.composite(background, im, upsampled_mask).convert("RGB")
         for im, upsampled_mask in zip(resized_image, upsampled_image_mask)
