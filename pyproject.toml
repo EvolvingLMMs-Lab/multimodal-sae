@@ -32,7 +32,8 @@ dependencies = [
     "transformers==4.45.2",
     "umap-learn[plot]",
     "plotly",
-    "opencv-python"
+    "opencv-python",
+    "torchmetrics"
 ]
 
 
