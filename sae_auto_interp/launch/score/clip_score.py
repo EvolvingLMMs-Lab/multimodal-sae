@@ -27,7 +27,7 @@ def parse_args():
     parser.add_argument(
         "--clip_name_or_path",
         type=str,
-        default="openai/clip-vit-base-patch16",
+        default="openai/clip-vit-base-patch32",
         help="The clip you use",
     )
     parser.add_argument(
@@ -76,7 +76,7 @@ if __name__ == "__main__":
         client.clean()
     else:
         with open(args.refine_cache):
-            scorer.explanation = json.load(open(args.refine_cache, "r"))
+            scorer.explanations = json.load(open(args.refine_cache, "r"))
 
     scores = scorer.run()
     save_dir = "/".join(args.save_score_path.split("/")[:-1])
