@@ -5,7 +5,7 @@ import os
 import torch
 import torch.distributed as dist
 
-from sae_auto_interp.agents.scorers import ClipScorer, LabelRefiner
+from sae_auto_interp.agents.scorers import ClipScorer, GeneratedClipScorer, LabelRefiner
 from sae_auto_interp.clients import SRT
 from sae_auto_interp.utils import load_filter
 
@@ -50,7 +50,7 @@ def parse_args():
         "-e",
         type=str,
         default="default",
-        choices=["default", "random"],
+        choices=["default", "random", "generated"],
         help="The evaluation type, default is the top k images, random is random select k images",
     )
 
@@ -59,15 +59,19 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    scorer = ClipScorer(
-        explanation_dir=args.explanation_dir,
-        dataset_path=args.dataset_path,
-        dataset_split=args.dataset_split,
-        k=5,
-        evaluation_type=args.evaluation_type,
-        clip_model_name_or_path=args.clip_name_or_path,
-        device="cuda",
-    )
+    kwargs = {
+        "explanation_dir": args.explanation_dir,
+        "dataset_path": args.dataset_path,
+        "dataset_split": args.dataset_split,
+        "k": 5,
+        "evaluation_type": args.evaluation_type,
+        "clip_model_name_or_path": args.clip_name_or_path,
+        "device": "cuda",
+    }
+    if args.evaluation_type != "generated":
+        scorer = ClipScorer(**kwargs)
+    else:
+        scorer = GeneratedClipScorer(**kwargs)
 
     if args.refine_cache is None:
         client = SRT(model="meta-llama/Llama-3.1-8B-Instruct", tp=2)

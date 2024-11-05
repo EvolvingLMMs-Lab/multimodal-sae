@@ -43,7 +43,7 @@ class ClipScorer:
 
     def refine(self, refiner: LabelRefiner, save_path):
         asyncio.run(refiner.refine())
-        self.explanation = refiner.refine_features
+        self.explanations = refiner.refine_features
         refiner.save_result(save_path)
 
     def run(
@@ -107,5 +107,59 @@ class ClipScorer:
                     "label": self.explanations[feature],
                 }
             )
+        pbar.close()
+        return self.scores
+
+
+class GeneratedClipScorer(ClipScorer):
+    def __init__(
+        self,
+        explanation_dir: str,
+        dataset_path: str,
+        dataset_split: str = "train",
+        k: int = 1,
+        evaluation_type: Literal["random", "default"] = "default",
+        clip_model_name_or_path: str = "openai/clip-vit-base-patch16",
+        device: Union[str, torch.device] = "cuda",
+        random_runs: int = 30,
+    ) -> None:
+        super().__init__(
+            explanation_dir,
+            dataset_path,
+            dataset_split,
+            k,
+            evaluation_type,
+            clip_model_name_or_path,
+            device,
+            random_runs,
+        )
+
+    def run(
+        self,
+    ):
+        self.scores = []
+        pbar = tqdm(total=len(self.dataset), desc="Perform scoring")
+        for idx, doc in enumerate(self.dataset):
+            feature = doc["feature"]
+            image = doc["image"]
+            explanation = self.explanations[feature]
+            image_tensor = pil_to_tensor(image)
+            clip_score = (
+                self.metric(image_tensor.to(self.device), self.explanations[feature])
+                .detach()
+                .cpu()
+                .item()
+            )
+            self.scores.append(
+                {
+                    "feature": feature,
+                    "clip_scores": clip_score,
+                    "avg_score": clip_score,
+                    "k": 1,
+                    "label": self.explanations[feature],
+                }
+            )
+            pbar.update(1)
+
         pbar.close()
         return self.scores
