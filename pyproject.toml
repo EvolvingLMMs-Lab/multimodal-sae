@@ -36,6 +36,11 @@ dependencies = [
     "torchmetrics"
 ]
 
+[project.optional-dependencies]
+generation = [
+    "diffuser"
+]
+
 
 [tool.pyright]
 include = ["sae_auto_interp*"]
