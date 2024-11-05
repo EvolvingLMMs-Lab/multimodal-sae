@@ -5,9 +5,14 @@ import os
 import torch
 import torch.distributed as dist
 from datasets import load_dataset
+from tqdm import tqdm
 from transformers import AutoProcessor
 
-from sae_auto_interp.agents.scorers import LabelRefiner, SegmentScorer
+from sae_auto_interp.agents.scorers import (
+    LabelRefiner,
+    RandomSegmentScorer,
+    SegmentScorer,
+)
 from sae_auto_interp.clients import SRT
 from sae_auto_interp.utils import load_filter
 
@@ -107,18 +112,23 @@ if __name__ == "__main__":
 
     tokens = load_dataset(args.dataset_path, split=args.dataset_split)
     processor = AutoProcessor.from_pretrained(args.model_name)
-    scorer = SegmentScorer(
-        activation_dir=args.activation_dir,
-        tokens=tokens,
-        processor=processor,
-        width=args.width,
-        n_splits=args.n_splits,
-        explanation_dir=args.explanation_dir,
-        detector=args.detector,
-        segmentor=args.segmentor,
-        device=f"cuda:{rank}",
-        filters=filters,
-    )
+    kwargs = {
+        "activation_dir": args.activation_dir,
+        "tokens": tokens,
+        "processor": processor,
+        "width": args.width,
+        "n_splits": args.n_splits,
+        "explanation_dir": args.explanation_dir,
+        "detector": args.detector,
+        "segmentor": args.segmentor,
+        "device": f"cuda:{rank}",
+        "filters": filters,
+    }
+
+    if args.eval_type == "default":
+        scorer = SegmentScorer(**kwargs)
+    elif args.eval_type == "random":
+        scorer = RandomSegmentScorer(**kwargs)
 
     if args.refine_cache is None:
         if ddp:
@@ -133,7 +143,14 @@ if __name__ == "__main__":
         with open(args.refine_cache):
             scorer.explanation = json.load(open(args.refine_cache, "r"))
     scorer.load_model()
-    scores = scorer()
+    if args.eval_type == "default":
+        scores = scorer()
+    elif args.eval_type == "random":
+        scores = []
+        pbar = tqdm(total=10, desc="Random Sampling trial ...")
+        for _ in range(10):
+            scorer._init_loader(tokens, processor)
+            scores.extend(scorer())
 
     if ddp:
         gathered_scores = [None for _ in range(dist.get_world_size())]

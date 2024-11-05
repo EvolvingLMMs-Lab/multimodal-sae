@@ -195,7 +195,9 @@ class SegmentScorer:
                         "iou_scores": iou_scores,
                         "avg_iou": (sum(iou_scores) + bad_cases) / len(iou_scores),
                         "k": len(iou_scores),
-                        "activated_pct": sum(activated_pct) / len(activated_pct),
+                        "activated_pct": sum(activated_pct) / len(activated_pct)
+                        if len(activated_pct) != 0
+                        else 0,
                         "label": explanation,
                     }
                 )
@@ -323,7 +325,7 @@ class RandomSegmentScorer(SegmentScorer):
         processor: AutoProcessor,
         selected_layer: str = "model.layers.24",
         width: int = 131072,
-        n_split: int = 1024,
+        n_splits: int = 1024,
         detector: str = "IDEA-Research/grounding-dino-base",
         segmentor: str = "facebook/sam-vit-huge",
         device: str = "cuda",
@@ -331,13 +333,27 @@ class RandomSegmentScorer(SegmentScorer):
         filters: torch.Tensor = None,
     ) -> None:
         super().__init__(
-            explanation_dir, detector, segmentor, device, threshold, filters
+            explanation_dir,
+            activation_dir,
+            tokens,
+            processor,
+            selected_layer,
+            width,
+            n_splits,
+            detector,
+            segmentor,
+            device,
+            threshold,
+            filters,
         )
 
-    def __call__(self):
-        for record in self.loader():
-            import pdb
-
-            pdb.set_trace()
-            continue
-        pass
+    def _init_loader(self, tokens: Dataset, processor: AutoProcessor):
+        self.loader = partial(
+            self.dataset.load,
+            constructor=partial(
+                random_activations_image,
+                tokens=tokens,
+                cfg=self.feature_cfg,
+                processor=processor,
+            ),
+        )

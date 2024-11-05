@@ -1,6 +1,12 @@
 from .clip.clip_scorer import ClipScorer
 from .segment.label_refiner import LabelRefiner
-from .segment.segment_scorer import SegmentScorer
+from .segment.segment_scorer import RandomSegmentScorer, SegmentScorer
 from .simple.simple_scorer import SimpleScorer
 
-__all__ = [SimpleScorer, SegmentScorer, LabelRefiner, ClipScorer]
+__all__ = [
+    "SimpleScorer",
+    "SegmentScorer",
+    "LabelRefiner",
+    "ClipScorer",
+    "RandomSegmentScorer",
+]
