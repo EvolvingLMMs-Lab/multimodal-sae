@@ -4,6 +4,7 @@ from .constructors import (
     pool_max_activation_windows,
     pool_max_activations_windows_image,
     random_activation_windows,
+    random_activations_image,
 )
 from .features import Example, Feature, FeatureRecord
 from .loader import FeatureDataset
@@ -21,6 +22,7 @@ __all__ = [
     "pool_max_activation_windows",
     "pool_max_activations_windows_image",
     "random_activation_windows",
+    "random_activations_image",
     "default_constructor",
     "sample",
     "sample_with_explanation",

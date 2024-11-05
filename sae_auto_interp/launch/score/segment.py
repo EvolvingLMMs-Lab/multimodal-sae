@@ -4,6 +4,8 @@ import os
 
 import torch
 import torch.distributed as dist
+from datasets import load_dataset
+from transformers import AutoProcessor
 
 from sae_auto_interp.agents.scorers import LabelRefiner, SegmentScorer
 from sae_auto_interp.clients import SRT
@@ -23,6 +25,42 @@ def parse_args():
         type=str,
         default="facebook/sam-vit-huge",
         help="The segmentor you use",
+    )
+    parser.add_argument(
+        "--eval-type",
+        type=str,
+        choices=["default", "random"],
+        default="default",
+        help="Whether topk or randomly sample the images",
+    )
+    parser.add_argument(
+        "--dataset-path",
+        type=str,
+        help="The path to the dataset",
+        default=None,
+    )
+    parser.add_argument(
+        "--dataset-split", type=str, help="The split of the dataset", default=None
+    )
+    parser.add_argument(
+        "--activation_dir",
+        type=str,
+        help="The path to your activation cache dir",
+    )
+    parser.add_argument(
+        "--model-name",
+        type=str,
+        default="llava-hf/llama3-llava-next-8b-hf",
+        help="The path of the base llava model",
+    )
+    parser.add_argument(
+        "--width", type=int, default=131072, help="The width of your sae"
+    )
+    parser.add_argument(
+        "--n-splits",
+        "-n",
+        type=int,
+        help="The n split you set when cache the activations",
     )
     parser.add_argument(
         "--explanation_dir", type=str, help="The place where you store you explanation"
@@ -59,14 +97,22 @@ if __name__ == "__main__":
 
     if args.filters is not None:
         filters = load_filter(args.filters)
-        filters = filters[args.selected_layer]
+        filters = filters[args.selected_layer].cpu()
     else:
         filters = None
 
     if ddp:
         torch.cuda.set_device(int(local_rank))
         dist.init_process_group("nccl")
+
+    tokens = load_dataset(args.dataset_path, split=args.dataset_split)
+    processor = AutoProcessor.from_pretrained(args.model_name)
     scorer = SegmentScorer(
+        activation_dir=args.activation_dir,
+        tokens=tokens,
+        processor=processor,
+        width=args.width,
+        n_splits=args.n_splits,
         explanation_dir=args.explanation_dir,
         detector=args.detector,
         segmentor=args.segmentor,

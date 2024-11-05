@@ -59,7 +59,7 @@ class FeatureConfig(Serializable):
     width: int
     """Number of features in the autoencoder"""
 
-    example_ctx_len: int
+    example_ctx_len: int = 64
     """Length of each example."""
 
     min_examples: int = 200

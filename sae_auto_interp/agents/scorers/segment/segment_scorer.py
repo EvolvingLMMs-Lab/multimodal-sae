@@ -2,6 +2,7 @@ import asyncio
 import os
 import random
 from dataclasses import dataclass
+from functools import partial
 from glob import glob
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -13,12 +14,19 @@ import plotly.graph_objects as go
 import requests
 import torch
 import torch.distributed as dist
+from datasets import Dataset
 from loguru import logger
 from natsort import natsorted
 from PIL import Image
 from tqdm import tqdm
 from transformers import AutoModelForMaskGeneration, AutoProcessor, pipeline
 
+from sae_auto_interp.config import FeatureConfig
+from sae_auto_interp.features import (
+    FeatureDataset,
+    pool_max_activations_windows_image,
+    random_activations_image,
+)
 from sae_auto_interp.utils import load_explanation
 
 from .label_refiner import LabelRefiner
@@ -29,6 +37,12 @@ class SegmentScorer:
     def __init__(
         self,
         explanation_dir: str,
+        activation_dir: str,
+        tokens: Dataset,
+        processor: AutoProcessor,
+        selected_layer: str = "model.layers.24",
+        width: int = 131072,
+        n_splits: int = 1024,
         detector: str = "IDEA-Research/grounding-dino-base",
         segmentor: str = "facebook/sam-vit-huge",
         device: str = "cuda",
@@ -42,6 +56,34 @@ class SegmentScorer:
         self.processor = AutoProcessor.from_pretrained(segmentor)
         self.explanation_dir = explanation_dir
         self.explanation = load_explanation(explanation_dir)
+        self._maybe_init_ddp(filters=filters)
+        self._build_dataset(activation_dir, width, n_splits, filters, selected_layer)
+        self._init_loader(tokens, processor)
+
+    def _build_dataset(
+        self,
+        activation_dir: str,
+        width: int,
+        n_splits: int,
+        filters: torch.Tensor = None,
+        selected_layer: str = "model.layers.24",
+    ):
+        self.modules = os.listdir(activation_dir)
+        self.width = width
+        self.n_splits = n_splits
+        self.activation_dir = activation_dir
+        self.filters = {selected_layer: filters}
+        self.feature_cfg = FeatureConfig(
+            width=self.width, max_examples=5, n_splits=n_splits
+        )
+        self.dataset = FeatureDataset(
+            activation_dir,
+            cfg=self.feature_cfg,
+            modules=self.modules,
+            features=self.filters,
+        )
+
+    def _maybe_init_ddp(self, filters: torch.Tensor = None):
         local_rank = os.environ.get("LOCAL_RANK")
         self.ddp = local_rank is not None
         self.rank = int(local_rank) if local_rank is not None else 0
@@ -65,6 +107,17 @@ class SegmentScorer:
             k: v for k, v in self.explanation.items() if k in self.features
         }
 
+    def _init_loader(self, tokens: Dataset, processor: AutoProcessor):
+        self.loader = partial(
+            self.dataset.load,
+            constructor=partial(
+                pool_max_activations_windows_image,
+                tokens=tokens,
+                cfg=self.feature_cfg,
+                processor=processor,
+            ),
+        )
+
     def refine(self, refiner: LabelRefiner, save_path):
         asyncio.run(refiner.refine())
         self.explanation = refiner.refine_features
@@ -85,64 +138,75 @@ class SegmentScorer:
     def __call__(self) -> Any:
         self.scores = []
         pbar = tqdm(total=len(self.features), desc="Perform scoring", disable=self.rank)
-        for feature in self.features:
-            model_layer = feature.split("_")[0].replace(".", "_")
-            mask_image_folder = os.path.join(
-                self.explanation_dir, "images", model_layer, feature, "masks"
-            )
-            image_folder = os.path.join(
-                self.explanation_dir, "images", model_layer, feature, "images"
-            )
-            image_files = glob(os.path.join(image_folder, "*.jpg"))
-            # Sort from top 0 to top k
-            image_files = natsorted(image_files)
-            iou_scores = []
-            bad_cases = 0
-            for idx, image_file in enumerate(image_files):
-                image = Image.open(image_file)
-                mask = Image.open(os.path.join(mask_image_folder, f"{idx}_mask.jpg"))
-                image = image.resize(mask.size).convert("RGB")
-                try:
-                    image_np, detections = self.grounded_segmentation(
-                        image, [self.explanation[feature]]
+        for records in self.loader():
+            for record in records:
+                explanation = self.explanation[f"{record.feature}"]
+                if "Unable to produce descriptions" in explanation:
+                    self.scores.append(
+                        {
+                            "feature": f"{record.feature}",
+                            "iou_scores": [],
+                            "avg_iou": -1,
+                            "k": -1,
+                            "activated_pct": -1,
+                            "label": explanation,
+                        }
                     )
-                except:
-                    logger.info(
-                        f"Unable to grounded for feature : {feature} - Top {idx + 1}"
-                    )
-                    iou_scores.append(-1)
-                    bad_cases += 1
+                    pbar.update(1)
                     continue
-                # When I create mask, I set the activated region as 0 and inactivated region as
-                # sth larger than 0. So shift here
-                mask_np = np.array(mask)
-                zero_area = mask_np >= 224
-                nonzero_area = mask_np < 224
-                mask_np[zero_area] = 0
-                mask_np[nonzero_area] = 1
-                target = np.zeros_like(mask_np)
-                # Include every detection areas
-                for detection in detections:
-                    target = np.logical_or(detection.mask, target)
+                iou_scores = []
+                activated_pct = []
+                bad_cases = 0
+                for idx, example in enumerate(record.examples):
+                    image: Image.Image = example.image
+                    mask: Image.Image = example.mask
+                    image = image.resize(mask.size).convert("RGB")
+                    try:
+                        image_np, detections = self.grounded_segmentation(
+                            image, [explanation]
+                        )
+                    except:
+                        logger.info(
+                            f"Unable to grounded for feature : {record.feature} - Top {idx + 1}"
+                        )
+                        iou_scores.append(-1)
+                        bad_cases += 1
+                        continue
+                    # When I create mask, I set the activated region as 0 and inactivated region as
+                    # sth larger than 0. So shift here
+                    mask_np = np.array(mask)
+                    zero_area = mask_np >= 224
+                    nonzero_area = mask_np < 224
+                    mask_np[zero_area] = 0
+                    mask_np[nonzero_area] = 1
+                    target = np.zeros_like(mask_np)
+                    # Include every detection areas
+                    for detection in detections:
+                        target = np.logical_or(detection.mask, target)
 
-                intersection = np.logical_and(target, mask_np)
-                union = np.logical_or(target, mask_np)
-                iou_score = np.sum(intersection) / (np.sum(union))
-                iou_scores.append(iou_score)
-                annotated_image = Image.fromarray(self.annotate(image_np, detections))
+                    iou_score = self._calculate_iou(mask_np, target)
+                    iou_scores.append(iou_score)
+                    activated_pct.append(mask_np.sum() / (mask.size[0] * mask.size[1]))
+                    # annotated_image = Image.fromarray(self.annotate(image_np, detections))
 
-            self.scores.append(
-                {
-                    "feature": feature,
-                    "iou_scores": iou_scores,
-                    "avg_iou": (sum(iou_scores) + bad_cases) / len(iou_scores),
-                    "k": len(iou_scores),
-                    "activated_pct": mask_np.sum() / (mask.size[0] * mask.size[1]),
-                    "label": self.explanation[feature],
-                }
-            )
-            pbar.update(1)
+                self.scores.append(
+                    {
+                        "feature": f"{record.feature}",
+                        "iou_scores": iou_scores,
+                        "avg_iou": (sum(iou_scores) + bad_cases) / len(iou_scores),
+                        "k": len(iou_scores),
+                        "activated_pct": sum(activated_pct) / len(activated_pct),
+                        "label": explanation,
+                    }
+                )
+                pbar.update(1)
         return self.scores
+
+    def _calculate_iou(self, mask: np.array, target: np.array):
+        intersection = np.logical_and(target, mask)
+        union = np.logical_or(target, mask)
+        iou_score = np.sum(intersection) / (np.sum(union))
+        return iou_score
 
     def grounded_segmentation(
         self,
@@ -244,3 +308,36 @@ class SegmentScorer:
                 cv2.drawContours(image_cv2, contours, -1, color.tolist(), 2)
 
         return cv2.cvtColor(image_cv2, cv2.COLOR_BGR2RGB)
+
+
+class RandomSegmentScorer(SegmentScorer):
+    """
+    A class that sample random image and do the scoring for baseline
+    """
+
+    def __init__(
+        self,
+        explanation_dir: str,
+        activation_dir: str,
+        tokens: Dataset,
+        processor: AutoProcessor,
+        selected_layer: str = "model.layers.24",
+        width: int = 131072,
+        n_split: int = 1024,
+        detector: str = "IDEA-Research/grounding-dino-base",
+        segmentor: str = "facebook/sam-vit-huge",
+        device: str = "cuda",
+        threshold: float = 0.3,
+        filters: torch.Tensor = None,
+    ) -> None:
+        super().__init__(
+            explanation_dir, detector, segmentor, device, threshold, filters
+        )
+
+    def __call__(self):
+        for record in self.loader():
+            import pdb
+
+            pdb.set_trace()
+            continue
+        pass
