@@ -151,8 +151,10 @@ if __name__ == "__main__":
         for _ in range(10):
             scorer._init_loader(tokens, processor)
             scores.extend(scorer())
+            pbar.update(1)
 
     if ddp:
+        dist.barrier()
         gathered_scores = [None for _ in range(dist.get_world_size())]
         all_rank_scores = dist.all_gather_object(gathered_scores, scores)
         final_scores = []

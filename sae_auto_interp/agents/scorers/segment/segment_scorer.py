@@ -57,7 +57,7 @@ class SegmentScorer:
         self.explanation_dir = explanation_dir
         self.explanation = load_explanation(explanation_dir)
         self._maybe_init_ddp(filters=filters)
-        self._build_dataset(activation_dir, width, n_splits, filters, selected_layer)
+        self._build_dataset(activation_dir, width, n_splits, selected_layer)
         self._init_loader(tokens, processor)
 
     def _build_dataset(
@@ -65,14 +65,13 @@ class SegmentScorer:
         activation_dir: str,
         width: int,
         n_splits: int,
-        filters: torch.Tensor = None,
         selected_layer: str = "model.layers.24",
     ):
         self.modules = os.listdir(activation_dir)
         self.width = width
         self.n_splits = n_splits
         self.activation_dir = activation_dir
-        self.filters = {selected_layer: filters}
+        self.filters = {selected_layer: self.filters}
         self.feature_cfg = FeatureConfig(
             width=self.width, max_examples=5, n_splits=n_splits
         )
@@ -97,6 +96,7 @@ class SegmentScorer:
             )[self.rank]
         else:
             self.feature_idx = torch.arange(chunk_size)
+        self.filters = self.feature_idx
         self.features = [
             self.features[idx]
             for idx in range(len(self.features))
