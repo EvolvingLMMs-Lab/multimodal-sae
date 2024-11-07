@@ -50,3 +50,24 @@ Original : {original_resps}
 Clamped : {clamped_resps}
 
 ANSWER : """
+
+
+CONCEPT_LABEL_PROMPT = """
+[GUIDELINES]
+You are an AI assistant tasked with assigning a single label based on the given input text. Each input will contain a description of a visual feature, which you must categorize into one of the following classes:
+
+scene - Describes a scene or environment.
+object - Describes an object or entity.
+part - Describes a part or aspect of an object.
+material - Describes a material or substance that constitutes other objects.
+texture - Describes the texture of an object.
+color - Describes the color of an object.
+
+Please provide only the class label from the list [scene, object, part, material, texture, color] with no additional text. Only one label should be chosen. Make sure you only choose from the classes listed above and do not output any other classes.
+
+Categorize the following description:
+
+{description}
+
+ANSWER:
+"""
