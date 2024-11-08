@@ -71,3 +71,20 @@ Categorize the following description:
 
 ANSWER:
 """
+
+GPT_CONSISTENCY_PROMPT = """
+[GUIDELINES]
+You are an AI assistant to help assessing whether the generated explanation is consistent with the activation area in the image. The activation area is being highlighted in the image and an explanation is provided for the activation area.
+
+You should output:
+0 if the explanation is not consistent with the activation area in the image.
+1 if the explanation is consistent with the activation area in the image.
+
+Please strictly follow the [GUIDELINES] and do not output anything other than the number 0 or 1
+
+Here is the explanation:
+
+{explanation}
+
+ANSWER :
+"""

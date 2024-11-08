@@ -1,9 +1,12 @@
+import base64
 import json
+from io import BytesIO
 from time import sleep
 from typing import Dict, List, Literal, Union
 
 from loguru import logger
 from openai import AsyncAzureOpenAI, AsyncOpenAI
+from PIL import Image
 
 from .client import Client
 
@@ -80,3 +83,13 @@ class OpenAIClient(Client):
         Postprocess the response from the API.
         """
         return response.choices[0].message.content
+
+    def encode_images(
+        self,
+        image: Image.Image,
+    ):
+        output_buffer = BytesIO()
+        image.save(output_buffer, format="PNG")
+        byte_data = output_buffer.getvalue()
+        base64_str = base64.b64encode(byte_data).decode("utf-8")
+        return base64_str
