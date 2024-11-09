@@ -9,7 +9,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from sae_auto_interp.config import AttributionConfig
 from sae_auto_interp.features import Attribution
-from sae_auto_interp.utils import maybe_load_llava_model
+from sae_auto_interp.utils import load_llava_quantized
 
 
 def main(cfg: AttributionConfig):
@@ -28,9 +28,7 @@ def main(cfg: AttributionConfig):
     logger.info(f"Using model {model_id}")
     logger.info(f"Using sae {cfg.sae_path}")
     logger.info(f"Selecting sae layer {cfg.selected_sae}")
-    model, processor = maybe_load_llava_model(
-        model_id, rank, torch.float16, hf_token=None
-    )
+    model, processor = load_llava_quantized(model_id, rank)
     attribution = Attribution(
         model,
         tokenizer,

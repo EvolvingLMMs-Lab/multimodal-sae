@@ -10,6 +10,7 @@ from transformers import (
     AutoTokenizer,
     LlavaNextForConditionalGeneration,
     LlavaNextProcessor,
+    QuantoConfig,
 )
 from transformers.image_processing_utils import select_best_resolution
 
@@ -83,6 +84,21 @@ def maybe_load_llava_model(
             token=hf_token,
         )
         processor = None
+
+    return model, processor
+
+
+def load_llava_quantized(
+    model_name,
+    rank,
+) -> Tuple[Union[AutoModel, LlavaNextForConditionalGeneration], LlavaNextProcessor]:
+    model = LlavaNextForConditionalGeneration.from_pretrained(
+        model_name,
+        device_map={"": f"cuda:{rank}"},
+        quantization_config=(QuantoConfig(weights="float8")),
+        torch_dtype=torch.float16,
+    )
+    processor = LlavaNextProcessor.from_pretrained(model_name)
 
     return model, processor
 
