@@ -191,7 +191,9 @@ def get_llava_image_pos(input_ids: List[int], image_tok: int) -> Tuple[int, int]
     """
     # Find the place of image token
     image_pos = input_ids.index(image_tok)
+    # Image embed start from the image token location
     prev = image_pos
+    # From the next token to the end will be text
     after = -(len(input_ids) - image_pos) + 1
     return prev, after
 
