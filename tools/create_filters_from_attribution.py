@@ -123,11 +123,11 @@ if __name__ == "__main__":
         else:
             top_k_indices = image_top_k_indices + text_top_k_indices
 
-        activated_text = ""
+        activated_html = ""
         for rank, i in enumerate(text_top_k_indices):
             activations = text_act[i, :]
             # Get the base image attribution
-            activated_text += f"feature_{i}: \n"
+            activated_html += f"<p>feature_{i}: </p>"
             activations = activations.clamp(min=0)
             activation_max = max(activations)
             activation_min = min(activations)
@@ -135,11 +135,16 @@ if __name__ == "__main__":
                 activation_max - activation_min + 1e-5
             )
             for idx, token in enumerate(completion_tokens):
-                activated_text += format_text_rgb(
-                    token, int(255 * activations[idx].item()), 0, 0
-                )
-            activated_text += "\n"
-        print(f"{module_name}:\n{activated_text}")
+                # Convert activation strength to a color intensity
+                color_intensity = activations[idx].item()
+                # Map color intensity to a color between red (high activation) and white (low activation)
+                # Adjusted to use a more vibrant color scheme for better visibility
+                color = f"rgb(255, {int(255 * (1 - color_intensity))}, {int(255 * (1 - color_intensity))})"
+                # Added a slight opacity to the background color for better readability
+                activated_html += f"<span style='background-color: {color}; opacity: 0.8;'>{token}</span>"
+            activated_html += "<br>"
+        with open(f"{module_name}_activations.html", "w") as file:
+            file.write(activated_html)
 
         for rank, i in enumerate(image_top_k_indices):
             image_features = (
