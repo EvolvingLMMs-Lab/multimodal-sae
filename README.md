@@ -15,7 +15,7 @@ These features can then be used to steer model's behavior to output desire outpu
 
 ## Install
 
-This codebase is built upon the [`sae-auto-interp`](https://github.com/EleutherAI/sae-auto-interp) repo and we modified it so that it can be used for LMMs. The installation can be easily done by the following steps:
+This codebase is built upon the [`sae-auto-interp`](https://github.com/EleutherAI/sae-auto-interp) repo and we modified it so that it can be used for LMMs and support other functionalities. The installation can be easily done by the following steps:
 ```bash
 conda create -n sae-auto-interp python=3.9
 conda activate sae-auto-interp
