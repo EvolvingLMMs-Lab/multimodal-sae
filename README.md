@@ -13,10 +13,6 @@ These features can then be used to steer model's behavior to output desire outpu
 
 
 
-## Announcement
-
-[2024-11] 🎉🎉 We release our codebase and model.
-
 ## Install
 
 This codebase is built upon the [`sae-auto-interp`](https://github.com/EleutherAI/sae-auto-interp) repo and we modified it so that it can be used for LMMs. The installation can be easily done by the following steps:
