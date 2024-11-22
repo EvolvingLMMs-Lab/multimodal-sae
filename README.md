@@ -9,7 +9,7 @@ The Sparse Autoencoder (SAE) is trained on LLaVA-NeXT data by integrating it int
 
 <img width="1716" alt="image" src="./assets/steer.png">
 
-These features can then be used to steer model's behavior to output desire output.
+These features can then be used to steer model's behavior to output desire output. You can check our papers for more details.
 
 
 
