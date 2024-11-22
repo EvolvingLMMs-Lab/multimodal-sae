@@ -49,6 +49,8 @@ torchrun --nproc_per_node=<your_gpu_num> --master_addr=<your_master_addr> --mast
 
 Since it is not realistic to interpret every feature, you are recommended to create a filter and only interpret a small amount of the features. A filter is a dictionary with its key correspond to a model layer name and value correspond to the index of the feature. For example, the following is a filter for the first 3 features in the sae and only activations for these three features will be stored.
 
+We provide a sample cache dataset for you to do the explanations. You can use any other image dataset that has the image columns. We also open-sourced our produced explanations and you can find them in our collections.
+
 ```json
 {
   "model.layers.24": [0,1,2]
