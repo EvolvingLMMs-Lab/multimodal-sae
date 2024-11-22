@@ -2,12 +2,12 @@
 
 🏠 [LMMs-Lab Homepage](https://lmms-lab.framer.ai) | 🤗 [Huggingface Collections](https://huggingface.co/lmms-lab) | [arxiv]()
 
-<img width="1720" alt="image" src="https://github.com/user-attachments/assets/38492054-c73a-4afa-9b84-bb1b8c557cb7">
+<img width="1720" alt="image" src="./assets/banner.png">
 
 The Sparse Autoencoder (SAE) is trained on LLaVA-NeXT data by integrating it into a specific layer of the model, with all other components frozen. The features learned by the SAE are subsequently interpreted through the proposed auto-explanation pipeline, which analyzes the visual features based on their activation regions.
 
 
-<img width="1716" alt="image" src="https://github.com/user-attachments/assets/3e6fa5d2-81d0-4913-9e17-f88b0144857f">
+<img width="1716" alt="image" src="./assets/steer.png">
 
 These features can then be used to steer model's behavior to output desire output.
 
