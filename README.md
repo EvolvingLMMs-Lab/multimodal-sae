@@ -27,8 +27,55 @@ python3 -m pip install -e . # python3 -m pip install . for permanent install
 ```
 
 ## Cache and Explain
+<img alt="image" src="./assets/explain.png">
 
+The visual auto interpretation pipeline is shown above. To be able to run the above pipeline, you will need to first cache the activations. The caching can be done using following scripts:
 
+```bash
+
+LLaVA_VERSION="llava-hf/llama3-llava-next-8b-hf"
+DATASET_VERSION="lmms-lab/sae-sample-cache-dataset"
+SAE_PATH="lmms-lab/llama3-llava-next-8b-hf-sae-131k"
+
+torchrun --nproc_per_node=<your_gpu_num> --master_addr=<your_master_addr> --master_port=<your_master_port> \
+    -m sae_auto_interp.launch.cache.cache_image \
+    $LLaVA_VERSION \
+    $DATASET_VERSION \
+    --split "train" \
+    --save_dir ./sae_cache/llava_llama_3_sae_la_1p6_131k_first5k \
+    --n_splits 128 \
+    --sae_path $SAE_PATH \
+    --ctx_len 64 \
+    --batch_size 1 \
+    --filters_path filters_5k.json
+```
+
+Since it is not realistic to interpret every feature, you are recommended to create a filter and only interpret a small amount of the features. A filter is a dictionary with its key correspond to a model layer name and value correspond to the index of the feature. For example, the following is a filter for the first 3 features in the sae and only activations for these three features will be stored.
+
+```json
+{
+  "model.layers.24": [0,1,2]
+}
+```
+
+Then you can run the auto explanation by using
+
+```bash
+python3 -m sae_auto_interp.launch.explain.explain_images \
+    --model $LLaVA_VERSION \
+    --dataset $DATASET_VERSION \
+    --example_ctx_len 64 \
+    --n_splits 128 \
+    --sae_path $SAE_PATH \
+    --split "train" \
+    --save_dir ./sae_cache/llava_llama_3_sae_la_1p6_131k_first5k \
+    --width 131072 \
+    --explanation_dir  ./explanation_dir/llava_llama_3_sae_la_1p6_131k \
+    --filters_path filters_5k.json \
+    --max_examples 5
+```
+
+By default the activated region is being interpolate using bilinear mode but you can also change it to other mode inside the code. We use `LLaVA-OV-72B` as the explanation model.
 
 
 ## Steering
