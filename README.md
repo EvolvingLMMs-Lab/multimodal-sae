@@ -80,7 +80,32 @@ By default the activated region is being interpolate using bilinear mode but you
 
 ## Steering
 
+We provide a simple tool for steering the model's behavior. You can run the `tools/model_steering.py` using the following script:
+
+```bash
+python3 tools/model_steering.py \
+    -t <Input Text> \
+    --sae-path $SAE_PATH \
+    -k 50 -f <feature_idx>
+    # You can add following args also
+    # -i <image_path> for image input
+    # --pure-text for apply chat template or not
+```
+
+or else, you can also perform large scale feature steering through
+
+```bash
+torchrun --nproc_per_node=<your_gpu_num> --master_addr=<your_master_addr> --master_port=<your_master_port> \
+    -m sae_auto_interp.launch.features.steering \
+    -t "Tell me a story about Alice and Bob" \
+    --sae-path $SAE_PATH \
+    --filters filters_5k.json 
+```
+
 ## Attribution Caching
+
+
+
 
 ## Acknowledgement
 This codebase is built upon the [`sae-auto-interp`](https://github.com/EleutherAI/sae-auto-interp) repo and modified for the use of our purpose.
