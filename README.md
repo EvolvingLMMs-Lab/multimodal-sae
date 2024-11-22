@@ -37,6 +37,7 @@ LLaVA_VERSION="llava-hf/llama3-llava-next-8b-hf"
 DATASET_VERSION="lmms-lab/sae-sample-cache-dataset"
 SAE_PATH="lmms-lab/llama3-llava-next-8b-hf-sae-131k"
 
+# ctx_len has no meaning when caching images, I just keep the same format as caching text
 torchrun --nproc_per_node=<your_gpu_num> --master_addr=<your_master_addr> --master_port=<your_master_port> \
     -m sae_auto_interp.launch.cache.cache_image \
     $LLaVA_VERSION \
@@ -133,7 +134,46 @@ torchrun --nproc_per_node=<your_gpu_num> --master_addr=<your_master_addr> --mast
 
 We prepare another tool `create_filters_from_attribution.py` to allow you to create filters from the cache. Since the attribution patching requires one backward operation, you are recommend to use a small resolution image or load the model in quantized mode.
 
-## Acknowledgement
-This codebase is built upon the [`sae-auto-interp`](https://github.com/EleutherAI/sae-auto-interp) repo and modified for the use of our purpose.
+## Evaluation
+We evaluate our interpretation using IOU and CLIP-Score. For IOU, you can run the following scripts:
 
+```bash
+python3 \
+    -m sae_auto_interp.launch.score.segment \
+    --explanation_dir <your_explanation_dir \
+    --filters filters_5k.json \
+    --save-refine-path <path_to_save_refine_explanation> \
+    --save-score-path <path_to_save_scores> \
+    --selected-layer model.layers.24 \
+    --dataset-path lmms-lab/sae-sample-cache-dataset \
+    --dataset-split train \
+    --activation_dir <path_to_activations_cache> \
+    --width 131072 --n-splits 128
+    # --refine-cache <path_to_stored_refine_explanation>
+```
+
+We use LLaMA-3.1-Instruct-8B to refine the explanation before sending into Grounding-Dino + SAE. The total process should be quick using sglang and if you store these refined explanation, you can directly use it for the evaluation. For CLIP-Score, you can use the following script:
+
+```bash
+python3 \
+    -m sae_auto_interp.launch.score.clip_score \
+    -d lmms-lab/sae-sample-cache-dataset \
+    --explanation_dir <your_explanation_dir \
+    --save-refine-path <path_to_save_refine_explanation> \
+    --save-score-path <path_to_save_scores>
+    # --refine-cache <path_to_stored_refine_explanation>
+```
+
+## Limitation
+This codebase is mainly built to interpret the visual features for the model `LLaVA-NeXT-LLaMA-8B` so there might be some hardcoded logic to handle some edge cases across the pipeline. If you intend to use the code on other models, this might need to be noticed.
+
+The auto explanation process is not perfect and in fact there are many wrong cases due to the model's ability. We definitely believe that in the future their would be more open-sourced vision models that have better reasoning skills and can be applied to this pipeline.
+
+## Acknowledgement
+This codebase is a detached fork built upon the [`sae-auto-interp`](https://github.com/EleutherAI/sae-auto-interp) repo and modified for the use of our purpose. We modify and delete a lot of parts of the original code so the code structure might be quite different and has different functionalities. We also recommend you to read through their documentations and their [blog](https://blog.eleuther.ai/autointerp/) for their wonderful works
+
+## Citations
+If you find this work helpful, please cite
+```shell
+```
 
