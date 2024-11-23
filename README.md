@@ -4,6 +4,8 @@
 
 For the first time in the multimodal domain, we demonstrate that features learned by Sparse Autoencoders (SAEs) in a smaller Large Multimodal Model (LMM) can be effectively interpreted by a larger LMM. Our work introduces the use of SAEs to analyze the open-semantic features of LMMs, providing the solution for feature interpretation across various model scales.
 
+This research is inspired by Anthropic's remarkable [work](https://transformer-circuits.pub/2024/scaling-monosemanticity/) on applying SAEs to interpret features in large-scale language models. In the multimodal domain, we discovered intriguing features that correlate with diverse semantics and can be leveraged to steer model behavior, enabling more precise control and understanding of LMM functionality.
+
 <img width="1720" alt="image" src="./assets/banner.png">
 
 The Sparse Autoencoder (SAE) is trained on LLaVA-NeXT data by integrating it into a specific layer of the model, with all other components frozen. The features learned by the SAE are subsequently interpreted through the proposed auto-explanation pipeline, which analyzes the visual features based on their activation regions.
