@@ -1,6 +1,6 @@
 # Large Multi-modal Models Can Interpret Features in Large Multi-modal Models
 
-🏠 [LMMs-Lab Homepage](https://lmms-lab.framer.ai) | 🤗 [Huggingface Collections](https://huggingface.co/collections/lmms-lab/llava-sae-674026e4e7bc8c29c70bc3a3) | [ArXiv](https://arxiv.org/abs/2411.14982)
+🔍 [ArXiv Paper](https://arxiv.org/abs/2411.14982) | 🏠 [LMMs-Lab Homepage](https://lmms-lab.framer.ai) | 🤗 [Huggingface Collections](https://huggingface.co/collections/lmms-lab/llava-sae-674026e4e7bc8c29c70bc3a3)
 
 For the first time in the multimodal domain, we demonstrate that features learned by Sparse Autoencoders (SAEs) in a smaller Large Multimodal Model (LMM) can be effectively interpreted by a larger LMM. Our work introduces the use of SAEs to analyze the open-semantic features of LMMs, providing the solution for feature interpretation across various model scales.
 
