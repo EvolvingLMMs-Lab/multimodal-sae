@@ -102,14 +102,14 @@ torchrun --nproc_per_node=<your_gpu_num> --master_addr=<your_master_addr> --mast
     -m sae_auto_interp.launch.features.steering \
     -t "Tell me a story about Alice and Bob" \
     --sae-path $SAE_PATH \
-    --filters filters_5k.json 
+    --filters filters_5k.json
 ```
 
 ## Attribution Caching
 
 <img alt="image" src="./assets/Attribution.png">
 
-In our paper, we also demonstrate a method that can be used to locate high feature contribution for a certain output token compare to another baseline token. Our method mainly adopted the pipeline of [`attribution patching`](https://www.neelnanda.io/mechanistic-interpretability/attribution-patching). This method can be used to find the features with high contribution towards a certain input and help you filter out the features. However, different from the text, we found out that their are many low level vision features that have high contribution. Thus, you might need to set the top-k value to a high value for example 100 to actually get the features you want. 
+In our paper, we also demonstrate a method that can be used to locate high feature contribution for a certain output token compare to another baseline token. Our method mainly adopted the pipeline of [`attribution patching`](https://www.neelnanda.io/mechanistic-interpretability/attribution-patching). This method can be used to find the features with high contribution towards a certain input and help you filter out the features. However, different from the text, we found out that their are many low level vision features that have high contribution. Thus, you might need to set the top-k value to a high value for example 100 to actually get the features you want.
 
 To perform attribution caching, you should first prepare a json file for the data like this:
 ```json
@@ -166,6 +166,10 @@ python3 \
     # --refine-cache <path_to_stored_refine_explanation>
 ```
 
+## Train
+
+The training code has been release, you can find it in the `train` folder. Please follow the documentation in the train folder for the training pipeline.
+
 ## Limitation
 This codebase is mainly built to interpret the visual features for the model `LLaVA-NeXT-LLaMA-8B` so there might be some hardcoded logic to handle some edge cases across the pipeline. If you intend to use the code on other models, this might need to be noticed.
 
@@ -178,13 +182,12 @@ This codebase is a detached fork built upon the [`sae-auto-interp`](https://gith
 If you find this work helpful, please cite
 ```shell
 @misc{zhang2024largemultimodalmodelsinterpret,
-      title={Large Multi-modal Models Can Interpret Features in Large Multi-modal Models}, 
+      title={Large Multi-modal Models Can Interpret Features in Large Multi-modal Models},
       author={Kaichen Zhang and Yifei Shen and Bo Li and Ziwei Liu},
       year={2024},
       eprint={2411.14982},
       archivePrefix={arXiv},
       primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2411.14982}, 
+      url={https://arxiv.org/abs/2411.14982},
 }
 ```
-
