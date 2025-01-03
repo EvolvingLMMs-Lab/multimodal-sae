@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sae"
+description = "Sparse autoencoders"
+readme = "README.md"
+requires-python = ">=3.9"
+keywords = ["interpretability", "explainable-ai"]
+license = {text = "MIT License"}
+dependencies = [
+    "accelerate",   # For device_map in from_pretrained
+    "datasets",
+    "einops",
+    "huggingface-hub",
+    "natsort",  # For sorting module names
+    "safetensors",
+    "simple-parsing",
+    "torch>=2.1.0",
+    "torchvision",
+    "transformers==4.44.0",
+    "hf_transfer",
+    "pillow==10.4.0",
+    "loguru",
+]
+version = "0.1.0"
+
+[project.scripts]
+sae = "sae.__main__:run"
+
+[tool.pyright]
+include = ["sae*"]
+reportPrivateImportUsage = false
+
+[tool.setuptools.packages.find]
+include = ["sae*"]
+
+[tool.ruff]
+# Enable pycodestyle (`E`), Pyflakes (`F`), and isort (`I`) codes
+# See https://beta.ruff.rs/docs/rules/ for more possible rules
+select = ["E", "F", "I"]
+# Same as Black.
+line-length = 88
+# Avoid automatically removing unused imports in __init__.py files.
+# Such imports will be flagged with a dedicated message suggesting
+# that the import is either added to the module's __all__ symbol
+ignore-init-module-imports = true
