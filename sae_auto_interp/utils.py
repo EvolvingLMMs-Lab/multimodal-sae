@@ -8,6 +8,8 @@ from torchtyping import TensorType
 from transformers import (
     AutoModel,
     AutoTokenizer,
+    InstructBlipForConditionalGeneration,
+    InstructBlipProcessor,
     LlavaNextForConditionalGeneration,
     LlavaNextProcessor,
     QuantoConfig,
@@ -76,6 +78,14 @@ def maybe_load_llava_model(
             token=hf_token,
         )
         processor = LlavaNextProcessor.from_pretrained(model_name)
+    elif "blip" in model_name:
+        model = InstructBlipForConditionalGeneration.from_pretrained(
+            model_name,
+            device_map={"": f"cuda:{rank}"},
+            torch_dtype=dtype,
+            token=hf_token,
+        )
+        processor = InstructBlipProcessor.from_pretrained(model_name)
     else:
         model = AutoModel.from_pretrained(
             model_name,

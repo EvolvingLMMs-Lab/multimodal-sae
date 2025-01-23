@@ -10,6 +10,7 @@ from simple_parsing import parse
 from transformers import (
     AutoModel,
     AutoTokenizer,
+    InstructBlipForConditionalGeneration,
     LlavaNextForConditionalGeneration,
     LlavaNextProcessor,
 )
@@ -42,7 +43,11 @@ def main(cfg: CacheConfig):
 
     model, processor = maybe_load_llava_model(cfg.model, rank, dtype, cfg.hf_token)
 
-    tokenizer = AutoTokenizer.from_pretrained(cfg.model, token=cfg.hf_token)
+    if isinstance(model, InstructBlipForConditionalGeneration):
+        tokenizer = processor.tokenizer
+        tokenizer.chat_template = "{% for message in messages %}{% if message['role'] != 'system' %}{{ message['role'].upper() + ': '}}{% endif %}{# Render all images first #}{% for content in message['content'] | selectattr('type', 'equalto', 'image') %}{{ '<image>\n' }}{% endfor %}{# Render all text next #}{% if message['role'] != 'assistant' %}{% for content in message['content'] | selectattr('type', 'equalto', 'text') %}{{ content['text'] + ' '}}{% endfor %}{% else %}{% for content in message['content'] | selectattr('type', 'equalto', 'text') %}{% generation %}{{ content['text'] + ' '}}{% endgeneration %}{% endfor %}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ 'ASSISTANT:' }}{% endif %}"
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(cfg.model, token=cfg.hf_token)
 
     logger.info(f"Load Dataset : {cfg.dataset}")
 

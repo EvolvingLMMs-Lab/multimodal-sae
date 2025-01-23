@@ -12,6 +12,7 @@ from torchtyping import TensorType
 from tqdm import tqdm
 from transformers import (
     AutoModel,
+    InstructBlipForConditionalGeneration,
     LlavaNextForConditionalGeneration,
     LlavaNextProcessor,
     PreTrainedTokenizer,
@@ -102,7 +103,9 @@ class FeatureCache:
         shard_size: int,
         filters: Dict[str, TensorType["indices"]] = None,
     ):
-        if isinstance(model, LlavaNextForConditionalGeneration):
+        if isinstance(model, LlavaNextForConditionalGeneration) or isinstance(
+            model, InstructBlipForConditionalGeneration
+        ):
             self.llava_model = model
             self.model = self.llava_model.language_model
         else:
@@ -326,7 +329,10 @@ class FeatureImageCache(FeatureCache):
             model, tokenizer, submodule_dict, batch_size, shard_size, filters
         )
         self.processor = processor
-        self.prompt = "<image>"
+        if isinstance(model, InstructBlipForConditionalGeneration):
+            self.prompt = "What is in this image?"
+        else:
+            self.prompt = "<image>"
 
     def run(self, n_tokens: int, tokens: Dataset):
         def collate_fn(instances: Sequence[Tuple]) -> Dict[str, torch.Tensor]:
@@ -359,11 +365,18 @@ class FeatureImageCache(FeatureCache):
         ) as pbar:
             for batch_number, batch in enumerate(token_batches):
                 images = batch["images"]
-                inputs = self.processor(
-                    text=[self.prompt] * self.batch_size,
-                    images=images,
-                    return_tensors="pt",
-                )
+                if isinstance(self.llava_model, InstructBlipForConditionalGeneration):
+                    inputs = self.processor(
+                        text=self.prompt,
+                        images=images[0],
+                        return_tensors="pt",
+                    ).to(self.model.device)
+                else:
+                    inputs = self.processor(
+                        text=[self.prompt] * self.batch_size,
+                        images=images,
+                        return_tensors="pt",
+                    )
 
                 total_tokens += self.batch_size
 
@@ -386,12 +399,17 @@ class FeatureImageCache(FeatureCache):
                     device = self.model.device
                     try:
                         with torch.no_grad():
-                            outputs = self.llava_model(
-                                input_ids=inputs["input_ids"].to(device),
-                                pixel_values=inputs["pixel_values"].to(device),
-                                image_sizes=inputs["image_sizes"].to(device),
-                                attention_mask=inputs["attention_mask"].to(device),
-                            )
+                            if isinstance(
+                                self.llava_model, InstructBlipForConditionalGeneration
+                            ):
+                                outputs = self.llava_model(**inputs)
+                            else:
+                                outputs = self.llava_model(
+                                    input_ids=inputs["input_ids"].to(device),
+                                    pixel_values=inputs["pixel_values"].to(device),
+                                    image_sizes=inputs["image_sizes"].to(device),
+                                    attention_mask=inputs["attention_mask"].to(device),
+                                )
                     finally:
                         for handle in handles:
                             handle.remove()
