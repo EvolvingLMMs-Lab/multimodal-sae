@@ -122,6 +122,7 @@ if __name__ == "__main__":
         "detector": args.detector,
         "segmentor": args.segmentor,
         "device": f"cuda:{rank}",
+        "selected_layer": args.selected_layer,
         "filters": filters,
     }
 

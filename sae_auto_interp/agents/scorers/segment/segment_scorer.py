@@ -56,6 +56,9 @@ class SegmentScorer:
         self.processor = AutoProcessor.from_pretrained(segmentor)
         self.explanation_dir = explanation_dir
         self.explanation = load_explanation(explanation_dir)
+        self.explanation = {
+            k: v for k, v in self.explanation.items() if selected_layer in k
+        }
         self._maybe_init_ddp(filters=filters)
         self._build_dataset(activation_dir, width, n_splits, selected_layer)
         self._init_loader(tokens, processor)
@@ -68,6 +71,7 @@ class SegmentScorer:
         selected_layer: str = "model.layers.24",
     ):
         self.modules = os.listdir(activation_dir)
+        self.modules = [m for m in self.modules if selected_layer in m]
         self.width = width
         self.n_splits = n_splits
         self.activation_dir = activation_dir
