@@ -30,7 +30,7 @@ echo "Train on $DATASET_VERSION using model $LLaVA_VERSION"
 
 RUN_NAME="$LLaVA_VERSION_CLEAN-$DATASET_VERSION_CLEAN-sae"
 
-torchrun --nproc_per_node="${ARNOLD_WORKER_GPU}" --master_addr="${METIS_WORKER_0_HOST}" --master_port="${port_in_cmd}" -m sae \
+torchrun --nproc_per_node="${WORKER_GPU}" --master_addr="${WORKER_HOST}" --master_port="${port}" -m sae \
     $LLaVA_VERSION \
     $DATASET_VERSION \
     --batch_size 1 \
