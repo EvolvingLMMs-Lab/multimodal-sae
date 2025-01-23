@@ -16,6 +16,8 @@ from tqdm.auto import tqdm
 from transformers import (
     AutoImageProcessor,
     AutoTokenizer,
+    InstructBlipForConditionalGeneration,
+    InstructBlipProcessor,
     LlavaNextForConditionalGeneration,
     PreTrainedModel,
     PreTrainedTokenizer,
@@ -71,7 +73,9 @@ class SaeTrainer:
         dataset: Union[HfDataset, MemmapDataset],
         model: Union[PreTrainedModel, LlavaNextForConditionalGeneration],
     ):
-        if isinstance(model, LlavaNextForConditionalGeneration):
+        if isinstance(model, LlavaNextForConditionalGeneration) or isinstance(
+            model, InstructBlipForConditionalGeneration
+        ):
             self.llava_model = model
             self.model = self.llava_model.language_model
             model = self.model
@@ -156,7 +160,10 @@ class SaeTrainer:
             self.optimizer, cfg.lr_warmup_steps, num_examples // cfg.batch_size
         )
         if cfg.mm_data:
-            self.image_processor = AutoImageProcessor.from_pretrained(cfg.model)
+            if isinstance(self.llava_model, InstructBlipForConditionalGeneration):
+                self.image_processor = InstructBlipProcessor.from_pretrained(cfg.model)
+            else:
+                self.image_processor = AutoImageProcessor.from_pretrained(cfg.model)
 
     def load_state(self, path: str):
         """Load the trainer state from disk."""
@@ -275,12 +282,18 @@ class SaeTrainer:
         for batch in dl:
             # Consider batch-size is 0 for now for simplicity
             if self.cfg.mm_data and batch["images"][0] is not None:
-                image_inputs = self.image_processor(
-                    [im for im in batch["images"]],
-                    do_pad=True,
-                    return_tensors="pt",
-                )["pixel_values"]
-                image_sizes = [[im.size[0], im.size[1]] for im in batch["images"]]
+                if isinstance(self.llava_model, InstructBlipForConditionalGeneration):
+                    prompt = self.image_processor.batch_decode(batch["input_ids"])
+                    image_inputs = self.image_processor(
+                        images=batch["images"], text=prompt, return_tensors="pt"
+                    ).to(device)
+                else:
+                    image_inputs = self.image_processor(
+                        [im for im in batch["images"]],
+                        do_pad=True,
+                        return_tensors="pt",
+                    )["pixel_values"]
+                    image_sizes = [[im.size[0], im.size[1]] for im in batch["images"]]
             hidden_dict.clear()
 
             # Bookkeeping for dead feature detection
@@ -294,12 +307,17 @@ class SaeTrainer:
                 with torch.no_grad():
                     if self.llava_model is not None:
                         if batch["images"][0] is not None:
-                            self.llava_model(
-                                batch["input_ids"].to(device),
-                                pixel_values=image_inputs.to(device),
-                                image_sizes=image_sizes,
-                                attention_mask=batch["attention_mask"].to(device),
-                            )
+                            if isinstance(
+                                self.llava_model, InstructBlipForConditionalGeneration
+                            ):
+                                self.llava_model(**image_inputs)
+                            else:
+                                self.llava_model(
+                                    batch["input_ids"].to(device),
+                                    pixel_values=image_inputs.to(device),
+                                    image_sizes=image_sizes,
+                                    attention_mask=batch["attention_mask"].to(device),
+                                )
                         else:
                             self.llava_model(
                                 batch["input_ids"].to(device),

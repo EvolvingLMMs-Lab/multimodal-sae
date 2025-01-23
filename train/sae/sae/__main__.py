@@ -13,6 +13,8 @@ from transformers import (
     AutoModel,
     AutoTokenizer,
     BitsAndBytesConfig,
+    InstructBlipForConditionalGeneration,
+    InstructBlipProcessor,
     LlavaNextForConditionalGeneration,
     PreTrainedModel,
     QuantoConfig,
@@ -83,6 +85,16 @@ def load_artifacts(
             torch_dtype=dtype,
             token=args.hf_token,
         )
+    elif "blip" in args.model:
+        model = InstructBlipForConditionalGeneration.from_pretrained(
+            args.model,
+            device_map={"": f"cuda:{rank}"},
+            quantization_config=(
+                QuantoConfig(weights="float8") if args.load_in_8bit else None
+            ),
+            torch_dtype=dtype,
+            token=args.hf_token,
+        )
     else:
         model = AutoModel.from_pretrained(
             args.model,
@@ -117,7 +129,14 @@ def load_artifacts(
 
         assert isinstance(dataset, Dataset)
         if "input_ids" not in dataset.column_names:
-            tokenizer = AutoTokenizer.from_pretrained(args.model, token=args.hf_token)
+            if "blip" in args.model:
+                processor = InstructBlipProcessor.from_pretrained(args.model)
+                tokenizer = processor.tokenizer
+                tokenizer.chat_template = "{% for message in messages %}{% if message['role'] != 'system' %}{{ message['role'].upper() + ': '}}{% endif %}{# Render all images first #}{% for content in message['content'] | selectattr('type', 'equalto', 'image') %}{{ '<image>\n' }}{% endfor %}{# Render all text next #}{% if message['role'] != 'assistant' %}{% for content in message['content'] | selectattr('type', 'equalto', 'text') %}{{ content['text'] + ' '}}{% endfor %}{% else %}{% for content in message['content'] | selectattr('type', 'equalto', 'text') %}{% generation %}{{ content['text'] + ' '}}{% endgeneration %}{% endfor %}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ 'ASSISTANT:' }}{% endif %}"
+            else:
+                tokenizer = AutoTokenizer.from_pretrained(
+                    args.model, token=args.hf_token
+                )
             if args.mm_data:
                 dataset = process_mm_data(dataset, tokenizer)
             else:
