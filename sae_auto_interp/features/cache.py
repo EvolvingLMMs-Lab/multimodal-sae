@@ -422,9 +422,16 @@ class FeatureImageCache(FeatureCache):
                         # So the llama tokenizer will add a bos token,
                         # I hardcode to remove it here,
                         # possibly later should some better way to remove this text
-                        latents = self.submodule_dict[module_path].pre_acts(
-                            latents[:, 1:, :]
-                        )
+                        if isinstance(
+                            self.llava_model, LlavaNextForConditionalGeneration
+                        ):
+                            latents = self.submodule_dict[module_path].pre_acts(
+                                latents[:, 1:, :]
+                            )
+                        else:
+                            latents = self.submodule_dict[module_path].pre_acts(
+                                latents[:, :32, :]
+                            )
                         topk = torch.topk(
                             latents, k=self.submodule_dict[module_path].cfg.k, dim=-1
                         )
