@@ -9,7 +9,7 @@ import torch
 from datasets import load_dataset
 from loguru import logger
 from simple_parsing import ArgumentParser
-from transformers import AutoProcessor
+from transformers import AutoProcessor, InstructBlipProcessor
 
 from sae_auto_interp.agents.explainers import ExplainerResult, ImageExplainer
 from sae_auto_interp.clients import SRT
@@ -28,7 +28,10 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
     ### Load tokens ###
     logger.info("Load dataset")
     tokens = load_dataset(args.experiment.dataset, split=args.experiment.split)
-    processor = AutoProcessor.from_pretrained(args.experiment.model)
+    if "blip" in args.experiment.model:
+        processor = InstructBlipProcessor.from_pretrained(args.experiment.model)
+    else:
+        processor = AutoProcessor.from_pretrained(args.experiment.model)
 
     modules = os.listdir(args.experiment.save_dir)
     if args.experiment.filters_path is not None:
@@ -105,10 +108,10 @@ def main(args: Union[FeatureConfig, ExperimentConfig]):
         os.makedirs(f"{image_output_dir}/masks", exist_ok=True)
         for image, activated_image, mask in zip(images, activated_images, masks):
             image.save(f"{image_output_dir}/images/top_{idx}.png")
-            activated_image.save(
+            activated_image.convert("RGB").save(
                 f"{image_output_dir}/activated_images/top{idx}_activated.jpg"
             )
-            mask.save(f"{image_output_dir}/masks/{idx}_mask.jpg")
+            mask.convert("RGB").save(f"{image_output_dir}/masks/{idx}_mask.jpg")
             idx += 1
 
         return result

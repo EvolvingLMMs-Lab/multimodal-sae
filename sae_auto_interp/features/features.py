@@ -9,7 +9,7 @@ from PIL import Image
 from torch.nn.functional import interpolate
 from torchtyping import TensorType
 from torchvision.transforms.functional import to_pil_image
-from transformers import AutoProcessor
+from transformers import AutoProcessor, InstructBlipProcessor
 
 
 @dataclass
@@ -49,6 +49,19 @@ def prepare_examples(tokens, activations):
 
 
 def prepare_image_examples(tokens, activations, images, processor: AutoProcessor):
+    if isinstance(processor, InstructBlipProcessor):
+        return [
+            ImageExample(
+                tokens=toks,
+                activations=acts,
+                image=image,
+                activation_image=activation_image,
+                mask=image,
+            )
+            for toks, acts, image, activation_image in zip(
+                tokens, activations, images, images
+            )
+        ]
     # TODO : This is a hacky way to get the image tokens
     # TODO: Currently only tries to get the activations for the base image feat
     # probably later try on how to get activations on unpadded image features
