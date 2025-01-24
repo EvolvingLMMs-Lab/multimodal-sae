@@ -4,6 +4,7 @@ import os
 
 import torch
 import torch.distributed as dist
+from natsort import natsorted
 
 from sae_auto_interp.agents.scorers import ClipScorer, GeneratedClipScorer, LabelRefiner
 from sae_auto_interp.clients import SRT
@@ -81,6 +82,8 @@ if __name__ == "__main__":
     else:
         with open(args.refine_cache):
             scorer.explanations = json.load(open(args.refine_cache, "r"))
+            scorer.features = [k for k in scorer.explanations.keys()]
+            scorer.features = natsorted(scorer.features)
 
     scores = scorer.run()
     save_dir = "/".join(args.save_score_path.split("/")[:-1])
