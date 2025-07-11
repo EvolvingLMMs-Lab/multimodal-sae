@@ -15,6 +15,11 @@ The Sparse Autoencoder (SAE) is trained on LLaVA-NeXT data by integrating it int
 
 These features can then be used to steer model's behavior to output desire output. You can check our papers for more details.
 
+## 📢 Announcement
+
+- We’ve open-sourced a new repo for easier and more flexible SAE training — check it out here: [https://github.com/EvolvingLMMs-Lab/sae](https://github.com/EvolvingLMMs-Lab/sae)
+- Our paper has been accepted to **ICCV 2025**! 🎉
+
 
 
 ## Install
