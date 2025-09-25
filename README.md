@@ -120,7 +120,7 @@ To perform attribution caching, you should first prepare a json file for the dat
 ```json
 [
     {
-        "prompt" : "<Your Prompt",
+        "prompt" : "<Your prompt>",
         "answer" : "<The answer token>",
         "baseline" : "<The baseline token>",
         "image" : "<image_path>"
@@ -133,7 +133,7 @@ Then, you would be able to perform attribution patching using this script:
 ```bash
 torchrun --nproc_per_node=<your_gpu_num> --master_addr=<your_master_addr> --master_port=<your_master_port> \
     -m sae_auto_interp.launch.features.attribution_patching \
-    "llava-hf/llama3-llava-next-8b-hf \
+    llava-hf/llama3-llava-next-8b-hf \
     --data_path <path_to_your_prepared_json> \
     --sae_path $SAE_PATH \
     --selected_sae model.layers.24
