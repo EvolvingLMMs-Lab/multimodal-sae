@@ -147,7 +147,7 @@ We evaluate our interpretation using IOU and CLIP-Score. For IOU, you can run th
 ```bash
 python3 \
     -m sae_auto_interp.launch.score.segment \
-    --explanation_dir <your_explanation_dir \
+    --explanation_dir <your_explanation_dir> \
     --filters filters_5k.json \
     --save-refine-path <path_to_save_refine_explanation> \
     --save-score-path <path_to_save_scores> \
@@ -165,7 +165,7 @@ We use LLaMA-3.1-Instruct-8B to refine the explanation before sending into Groun
 python3 \
     -m sae_auto_interp.launch.score.clip_score \
     -d lmms-lab/sae-sample-cache-dataset \
-    --explanation_dir <your_explanation_dir \
+    --explanation_dir <your_explanation_dir> \
     --save-refine-path <path_to_save_refine_explanation> \
     --save-score-path <path_to_save_scores>
     # --refine-cache <path_to_stored_refine_explanation>
